@@ -1,0 +1,438 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+#wrap{position:relative;width:100%;max-width:680px;margin:0 auto;background:#050508;font-family:'Press Start 2P',monospace}
+#hud{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#050508;border-bottom:2px solid #ff2244}
+.hv{font-size:11px;color:#ff2244;text-shadow:0 0 8px #ff2244}
+.hl{font-size:7px;color:#550011;letter-spacing:1px;margin-bottom:2px}
+.hearts{display:flex;gap:4px}
+.heart{font-size:13px;transition:opacity .3s}
+canvas{display:block;width:100%;image-rendering:pixelated}
+#ctrl{display:flex;justify-content:space-between;padding:8px 12px;background:#050508;border-top:2px solid #330011}
+.cb{font-family:'Press Start 2P',monospace;font-size:11px;padding:10px 16px;background:transparent;border:1.5px solid #330011;color:#550022;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.cb:active{background:#220011;color:#ff2244;border-color:#ff2244}
+#ov{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(5,0,8,0.93);z-index:10}
+#ov h1{font-size:16px;color:#ff2244;text-shadow:0 0 20px #ff2244;margin-bottom:14px;text-align:center;line-height:2}
+#ov p{font-size:7px;color:#660022;margin-bottom:22px;text-align:center;line-height:2.2}
+.obtn{font-family:'Press Start 2P',monospace;font-size:9px;padding:11px 22px;background:transparent;border:2px solid #ff2244;color:#ff2244;cursor:pointer;text-shadow:0 0 6px #ff2244;letter-spacing:1px}
+.obtn:hover{background:#ff2244;color:#050508}
+#lvlflash{position:absolute;top:30%;left:50%;transform:translateX(-50%);font-family:'Press Start 2P',monospace;font-size:20px;color:#ff2244;text-shadow:0 0 24px #ff2244;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap;z-index:5}
+</style>
+
+<div id="wrap">
+<div id="hud">
+  <div><div class="hl">BALL</div><div class="hv" id="sV">0</div></div>
+  <div><div class="hl">DARAJA</div><div class="hv" id="lV">1</div></div>
+  <div><div class="hl">HAYOT</div><div class="hearts" id="hrts"><span class="heart">♥</span><span class="heart">♥</span><span class="heart">♥</span></div></div>
+  <div><div class="hl">VAQT</div><div class="hv" id="tV">60</div></div>
+</div>
+<canvas id="c" width="680" height="340"></canvas>
+<div id="lvlflash" id="lf"></div>
+<div id="ctrl">
+  <div style="display:flex;gap:6px">
+    <button class="cb" id="bL">◀</button>
+    <button class="cb" id="bR">▶</button>
+  </div>
+  <button class="cb" id="bJ">SAKRA ▲</button>
+</div>
+<div id="ov">
+  <h1>PIXEL<br>HELLRUN</h1>
+  <p>← → harakat &nbsp;|&nbsp; SPACE sakrash<br>Tangalarni yig'ing — tirik qoling<br>Level 100 ga yeting!</p>
+  <button class="obtn" onclick="startGame()">▶ BOSHLASH</button>
+</div>
+</div>
+
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const W=680,H=340,GY=H-52;
+let score=0,lives=3,level=1,timer=0,active=false,over=false;
+let camX=0,particles=[],hazards=[],coins=[],plats=[],enemies=[],spikes=[],fallingBlocks=[],lasers=[];
+let timerInt=null;
+const keys={};
+
+const P={x:80,y:GY-40,w:26,h:34,vx:0,vy:0,og:false,dir:1,fr:0,ft:0,dead:false,dt:0,inv:0};
+
+function rnd(a,b){return a+Math.random()*(b-a)}
+function ri(a,b){return Math.floor(rnd(a,b))}
+
+function difficulty(lvl){
+  return{
+    spd: Math.min(4.5, 2.8+lvl*0.04),
+    jump: Math.min(13, 10+lvl*0.04),
+    gravity: Math.min(0.72, 0.52+lvl*0.003),
+    enemySpd: Math.min(4, 1+lvl*0.035),
+    laserFreq: Math.max(60, 240-lvl*2),
+    fallFreq: Math.max(40, 200-lvl*2),
+    timeLimit: Math.max(20, 60-Math.floor(lvl/3)),
+    coinCount: Math.max(4, 10-Math.floor(lvl/10))
+  };
+}
+
+function generateLevel(lvl){
+  const D=difficulty(lvl);
+  coins=[];hazards=[];plats=[];enemies=[];spikes=[];fallingBlocks=[];lasers=[];
+  camX=0;
+  P.x=80;P.y=GY-40;P.vy=0;P.vx=0;P.dead=false;P.inv=0;
+
+  const len=1800+lvl*200;
+  const coinTarget=D.coinCount;
+  let placed=0;
+
+  // Platformalar
+  let lastX=300;
+  while(lastX<len){
+    const gap=lvl<5?120:lvl<20?ri(100,200):ri(120,280);
+    const pw=lvl<10?ri(80,130):ri(50,110);
+    const py=GY-ri(60,160);
+    plats.push({x:lastX,y:py,w:pw,h:12});
+    if(placed<coinTarget&&Math.random()<0.7){
+      coins.push({x:lastX+ri(10,pw-20),y:py-22,r:8,got:false,bt:Math.random()*6});
+      placed++;
+    }
+    lastX+=gap+pw;
+  }
+
+  // Yerda tangalar
+  for(let x=200;x<len&&placed<coinTarget;x+=ri(80,160)){
+    coins.push({x,y:GY-22,r:8,got:false,bt:Math.random()*6});
+    placed++;
+  }
+
+  // Spike'lar (yerda tiklar)
+  const spikeCount=4+Math.floor(lvl*1.2);
+  for(let i=0;i<spikeCount;i++){
+    const sx=250+Math.random()*(len-300);
+    spikes.push({x:sx,y:GY-18,w:24,h:18});
+  }
+
+  // Dushmanlar
+  const eCount=3+Math.floor(lvl*0.8);
+  for(let i=0;i<eCount;i++){
+    enemies.push({x:350+Math.random()*(len-400),y:GY-28,w:26,h:28,vx:-(D.enemySpd*(0.7+Math.random()*0.6)),alive:true,fr:0,ft:0});
+  }
+
+  // Laser to'siqlari (lvl 5+)
+  if(lvl>=5){
+    const lCount=Math.floor(lvl/5);
+    for(let i=0;i<lCount;i++){
+      lasers.push({x:400+i*300+Math.random()*200,active:false,timer:0,period:D.laserFreq,onDur:50,y:GY-H+10,h:H-52});
+    }
+  }
+
+  // Tushuvchi bloklar (lvl 10+)
+  if(lvl>=10){
+    const fbCount=Math.floor(lvl/8);
+    for(let i=0;i<fbCount;i++){
+      fallingBlocks.push({x:300+i*250+Math.random()*200,y:-40,w:40,h:14,vy:0,active:false,triggerX:0,reset:true});
+    }
+    fallingBlocks.forEach(fb=>{fb.triggerX=fb.x-100;});
+  }
+
+  timer=D.timeLimit;
+  document.getElementById('tV').textContent=timer;
+}
+
+function flashLevel(txt){
+  const el=document.getElementById('lvlflash');
+  el.textContent=txt;el.style.opacity='1';
+  setTimeout(()=>el.style.opacity='0',900);
+}
+
+function startGame(){
+  score=0;lives=3;level=1;over=false;active=true;
+  particles=[];
+  document.getElementById('sV').textContent='0';
+  document.getElementById('lV').textContent='1';
+  document.querySelectorAll('.heart').forEach(h=>h.style.opacity='1');
+  generateLevel(1);
+  document.getElementById('ov').style.display='none';
+  clearInterval(timerInt);
+  timerInt=setInterval(()=>{
+    if(!active||over)return;
+    timer--;
+    document.getElementById('tV').textContent=timer;
+    if(timer<=0)die(true);
+  },1000);
+}
+
+function nextLevel(){
+  level++;
+  document.getElementById('lV').textContent=level;
+  flashLevel('DARAJA '+level+'!');
+  if(level>100){winGame();return;}
+  generateLevel(level);
+}
+
+function die(timeout){
+  if(P.dead)return;
+  P.dead=true;P.dt=55;P.vy=-9;
+  spawn(P.x+13,P.y+17,'#ff2244',18);
+  lives--;
+  const hs=document.querySelectorAll('.heart');
+  if(hs[lives])hs[lives].style.opacity='0.12';
+  if(lives<=0){setTimeout(endGame,700);}
+}
+
+function endGame(){
+  active=false;over=true;clearInterval(timerInt);
+  const ov=document.getElementById('ov');
+  ov.innerHTML=`<h1 style="font-size:13px;color:#ff2244;text-shadow:0 0 14px #ff2244;margin-bottom:10px">HALOK<br>BO'LDINGIZ</h1><p style="font-size:7px;color:#660022;margin-bottom:6px">BALL: <span style="color:#ff2244">${score}</span></p><p style="font-size:7px;color:#660022;margin-bottom:20px">DARAJA: <span style="color:#ff8800">${level}</span></p><button class="obtn" onclick="startGame()" style="font-family:'Press Start 2P',monospace;font-size:9px;padding:11px 22px;background:transparent;border:2px solid #ff2244;color:#ff2244;cursor:pointer">▶ QAYTA URINSHUV</button>`;
+  ov.style.display='flex';
+}
+
+function winGame(){
+  active=false;over=true;clearInterval(timerInt);
+  const ov=document.getElementById('ov');
+  ov.innerHTML=`<h1 style="font-size:12px;color:#ffd700;text-shadow:0 0 20px #ffd700;margin-bottom:10px">G'ALABA!<br>LEVEL 100!</h1><p style="font-size:7px;color:#aa8800;margin-bottom:6px">BALL: <span style="color:#ffd700">${score}</span></p><button class="obtn" style="border-color:#ffd700;color:#ffd700;font-family:'Press Start 2P',monospace;font-size:9px;padding:11px 22px;background:transparent;cursor:pointer" onclick="startGame()">▶ QAYTA</button>`;
+  ov.style.display='flex';
+}
+
+function respawn(){
+  P.x=Math.max(80,camX+70);P.y=GY-200;
+  P.vy=0;P.vx=0;P.dead=false;P.inv=80;
+}
+
+function spawn(x,y,col,n){
+  for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-.5)*6,vy:-(Math.random()*5+1),life:1,col,sz:Math.random()*4+2});
+}
+
+function rectHit(ax,ay,aw,ah,bx,by,bw,bh){return ax<bx+bw&&ax+aw>bx&&ay<by+bh&&ay+ah>by;}
+
+function update(){
+  if(!active||over)return;
+  const D=difficulty(level);
+
+  if(P.dead){P.dt--;if(P.dt<=0)respawn();return;}
+  if(P.inv>0)P.inv--;
+
+  if(keys['ArrowLeft']||keys['a']){P.vx=-D.spd;P.dir=-1;}
+  else if(keys['ArrowRight']||keys['d']){P.vx=D.spd;P.dir=1;}
+  else P.vx*=0.7;
+
+  const canJump=P.og&&(keys[' ']||keys['ArrowUp']||keys['w']);
+  if(canJump){P.vy=-D.jump;P.og=false;spawn(P.x+13,P.y+P.h,'#ff6600',6);}
+
+  P.vy+=D.gravity;if(P.vy>15)P.vy=15;
+  P.x+=P.vx;P.y+=P.vy;P.og=false;
+
+  if(P.y+P.h>=GY){P.y=GY-P.h;P.vy=0;P.og=true;}
+  if(P.y<0){P.y=0;P.vy=0;}
+
+  plats.forEach(pl=>{
+    if(P.vy>0&&rectHit(P.x,P.y,P.w,P.h,pl.x,pl.y,pl.w,pl.h)){
+      if(P.y+P.h-P.vy<=pl.y+6){P.y=pl.y-P.h;P.vy=0;P.og=true;}
+    }
+  });
+
+  if(P.y>H+60)die();
+
+  camX+=(P.x-camX-160)*0.13;
+  if(camX<0)camX=0;
+
+  // Tangalar
+  coins.forEach(c=>{
+    if(!c.got&&rectHit(P.x,P.y,P.w,P.h,c.x-c.r,c.y-c.r,c.r*2,c.r*2)){
+      c.got=true;score+=10*level;
+      spawn(c.x,c.y,'#ffd700',10);
+      document.getElementById('sV').textContent=score;
+    }
+    c.bt+=0.07;
+  });
+
+  if(coins.every(c=>c.got))nextLevel();
+
+  // Dushmanlar
+  enemies.forEach(e=>{
+    if(!e.alive)return;
+    e.x+=e.vx;
+    e.ft++;if(e.ft>10){e.ft=0;e.fr=1-e.fr;}
+    if(e.x<camX-60)e.x=camX+W+80;
+    if(P.inv<=0&&rectHit(P.x,P.y,P.w,P.h,e.x,e.y,e.w,e.h)){
+      if(P.vy>0&&P.y+P.h<e.y+e.h*0.5){
+        e.alive=false;score+=50*level;P.vy=-8;
+        spawn(e.x+13,e.y,'#ff2244',14);
+        document.getElementById('sV').textContent=score;
+      } else die();
+    }
+  });
+
+  // Spike'lar
+  if(P.inv<=0){
+    spikes.forEach(s=>{
+      if(rectHit(P.x+4,P.y+4,P.w-8,P.h-4,s.x,s.y,s.w,s.h))die();
+    });
+  }
+
+  // Lazerlar
+  lasers.forEach(l=>{
+    l.timer++;
+    if(l.timer>=l.period){l.active=true;}
+    if(l.timer>=l.period+l.onDur){l.active=false;l.timer=0;}
+    if(l.active&&P.inv<=0){
+      if(rectHit(P.x,P.y,P.w,P.h,l.x-camX-3,0,6,H))die();
+    }
+  });
+
+  // Tushuvchi bloklar
+  fallingBlocks.forEach(fb=>{
+    if(fb.reset){
+      if(P.x>fb.triggerX){fb.reset=false;fb.vy=0;fb.y=-40;}
+      return;
+    }
+    fb.vy+=0.6;fb.y+=fb.vy;
+    if(fb.y>H+30){fb.reset=true;fb.y=-40;fb.vy=0;return;}
+    if(P.inv<=0&&rectHit(P.x,P.y,P.w,P.h,fb.x,fb.y,fb.w,fb.h))die();
+    plats.forEach(pl=>{
+      if(fb.vy>0&&fb.y+fb.h>=pl.y&&fb.y+fb.h-fb.vy<=pl.y+4&&fb.x+fb.w>pl.x&&fb.x<pl.x+pl.w){
+        fb.y=pl.y-fb.h;fb.vy=0;
+      }
+    });
+    if(fb.y+fb.h>=GY){fb.y=GY-fb.h;fb.vy=0;}
+  });
+
+  P.ft++;if(P.ft>7){P.ft=0;P.fr=P.og?1-P.fr:0;}
+}
+
+function drawP(){
+  const px=Math.round(P.x-camX),py=Math.round(P.y);
+  if(P.inv>0&&Math.floor(P.inv/4)%2===0)return;
+  if(P.dead){
+    ctx.fillStyle='#ff2244';ctx.fillRect(px+2,py+22,22,8);
+    ctx.fillStyle='#882244';ctx.fillRect(px+6,py+14,14,10);
+    return;
+  }
+  ctx.fillStyle='#cc2200';ctx.fillRect(px+4,py,18,16);
+  ctx.fillStyle='#ffcc88';ctx.fillRect(px+6,py+2,14,10);
+  ctx.fillStyle='#cc2200';
+  if(P.dir>0){ctx.fillRect(px+16,py+4,6,5);}else{ctx.fillRect(px+4,py+4,6,5);}
+  ctx.fillRect(px+4,py+16,18,14);
+  ctx.fillStyle='#881100';
+  if(P.fr===0){ctx.fillRect(px+5,py+30,8,6);ctx.fillRect(px+13,py+30,8,6);}
+  else{ctx.fillRect(px+3,py+30,10,6);ctx.fillRect(px+13,py+28,10,6);}
+}
+
+function drawEnemy(e){
+  if(!e.alive)return;
+  const px=Math.round(e.x-camX),py=Math.round(e.y);
+  ctx.fillStyle='#ff2244';ctx.fillRect(px+2,py,22,18);
+  ctx.fillStyle='#ff6688';ctx.fillRect(px+4,py+2,7,7);ctx.fillRect(px+13,py+2,7,7);
+  ctx.fillStyle='#050508';ctx.fillRect(px+6,py+4,3,3);ctx.fillRect(px+15,py+4,3,3);
+  ctx.fillStyle='#ff2244';
+  if(e.fr===0){ctx.fillRect(px,py+18,10,7);ctx.fillRect(px+14,py+18,10,7);}
+  else{ctx.fillRect(px+2,py+18,10,9);ctx.fillRect(px+16,py+18,10,9);}
+}
+
+function drawSpike(s){
+  const px=Math.round(s.x-camX),py=Math.round(s.y);
+  ctx.fillStyle='#880022';
+  ctx.beginPath();ctx.moveTo(px,py+s.h);ctx.lineTo(px+12,py);ctx.lineTo(px+s.w,py+s.h);ctx.fill();
+  ctx.fillStyle='#ff2244';
+  ctx.beginPath();ctx.moveTo(px+2,py+s.h);ctx.lineTo(px+12,py+4);ctx.lineTo(px+s.w-2,py+s.h);ctx.fill();
+}
+
+function draw(){
+  ctx.fillStyle='#050508';ctx.fillRect(0,0,W,H);
+
+  // Yulduzlar
+  for(let i=0;i<40;i++){
+    const sx=((i*137+camX*0.08)%W+W)%W;
+    const sy=((i*97)%120)+10;
+    const tw=0.3+0.5*Math.abs(Math.sin(i+Date.now()*0.0008));
+    ctx.globalAlpha=tw;ctx.fillStyle='#ff4466';
+    ctx.fillRect(sx,sy,1,1);
+  }
+  ctx.globalAlpha=1;
+
+  // Yer
+  ctx.fillStyle='#110005';ctx.fillRect(0,GY,W,H-GY);
+  ctx.fillStyle='#440011';ctx.fillRect(0,GY,W,4);
+
+  // Platformalar
+  plats.forEach(pl=>{
+    const px=Math.round(pl.x-camX);
+    ctx.fillStyle='#330011';ctx.fillRect(px,pl.y,pl.w,pl.h);
+    ctx.fillStyle='#880022';ctx.fillRect(px,pl.y,pl.w,3);
+  });
+
+  // Tangalar
+  coins.forEach(c=>{
+    if(c.got)return;
+    const bob=Math.sin(c.bt)*5;
+    const cx=Math.round(c.x-camX),cy=Math.round(c.y+bob);
+    ctx.fillStyle='#ffd700';
+    ctx.beginPath();ctx.arc(cx,cy,c.r,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fff8';
+    ctx.beginPath();ctx.arc(cx-2,cy-2,3,0,Math.PI*2);ctx.fill();
+  });
+
+  // Spike'lar
+  spikes.forEach(s=>drawSpike(s));
+
+  // Lazerlar
+  lasers.forEach(l=>{
+    const lx=Math.round(l.x-camX);
+    if(l.active){
+      const flash=Math.floor(Date.now()/80)%2;
+      ctx.fillStyle=flash?'#ff0044':'#ff88aa';
+      ctx.fillRect(lx-3,0,6,H);
+      ctx.fillStyle='#ffffff44';
+      ctx.fillRect(lx-1,0,2,H);
+    } else {
+      ctx.fillStyle='#330011';
+      ctx.fillRect(lx-1,0,2,H);
+    }
+  });
+
+  // Tushuvchi bloklar
+  fallingBlocks.forEach(fb=>{
+    if(fb.reset)return;
+    const bx=Math.round(fb.x-camX),by=Math.round(fb.y);
+    ctx.fillStyle='#660022';ctx.fillRect(bx,by,fb.w,fb.h);
+    ctx.fillStyle='#cc0033';ctx.fillRect(bx,by,fb.w,3);
+    ctx.fillStyle='#330011';ctx.fillRect(bx+2,by+4,fb.w-4,fb.h-6);
+  });
+
+  // Dushmanlar
+  enemies.forEach(e=>drawEnemy(e));
+
+  // Particles
+  particles=particles.filter(p=>{
+    p.x+=p.vx;p.y+=p.vy;p.vy+=0.18;p.life-=0.045;
+    if(p.life>0){
+      ctx.globalAlpha=p.life;ctx.fillStyle=p.col;
+      ctx.fillRect(Math.round(p.x-camX),Math.round(p.y),p.sz,p.sz);
+      ctx.globalAlpha=1;
+    }
+    return p.life>0;
+  });
+
+  drawP();
+
+  // Level & vaqt overlay
+  const tv=parseInt(document.getElementById('tV').textContent)||0;
+  if(tv<=10&&tv>0){
+    ctx.fillStyle=`rgba(255,0,50,${0.04+0.03*Math.sin(Date.now()*0.01)})`;
+    ctx.fillRect(0,0,W,H);
+  }
+}
+
+let lt=0;
+function loop(ts){
+  if(ts-lt>15){lt=ts;update();draw();}
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+document.addEventListener('keydown',e=>{keys[e.key]=true;if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();});
+document.addEventListener('keyup',e=>{keys[e.key]=false;});
+
+['bL','bR','bJ'].forEach((id,i)=>{
+  const k=['ArrowLeft','ArrowRight',' '][i];
+  const el=document.getElementById(id);
+  el.addEventListener('touchstart',e=>{e.preventDefault();keys[k]=true;},{passive:false});
+  el.addEventListener('touchend',e=>{e.preventDefault();keys[k]=false;},{passive:false});
+  el.addEventListener('mousedown',()=>keys[k]=true);
+  el.addEventListener('mouseup',()=>keys[k]=false);
+});
+</script>
