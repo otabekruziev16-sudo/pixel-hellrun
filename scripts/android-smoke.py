@@ -25,6 +25,12 @@ def find(root, texts):
     return None
 def tap(point):
     adb("shell", "input", "tap", str(point[0]), str(point[1]))
+def launch():
+    # Use the launcher intent and flags to resume the same application task.
+    output = adb("shell", "am", "start", "-W", "-a", "android.intent.action.MAIN",
+                 "-c", "android.intent.category.LAUNCHER", "-f", "0x10200000",
+                 "-n", APP + "/.MainActivity")
+    print(output.decode(), flush=True)
 def wait_for(texts, message):
     deadline = time.monotonic() + 60
     while time.monotonic() < deadline:
@@ -45,7 +51,7 @@ def wait_for(texts, message):
 try:
     print(adb("install", "-r", "release/HellRun-Android.apk").decode())
     adb("logcat", "-c")
-    print(adb("shell", "am", "start", "-W", "-n", APP + "/.MainActivity").decode())
+    launch()
     start = wait_for(["BOSHLASH"], "Start button did not render in the Android WebView")
     (OUT / "android-menu.png").write_bytes(adb("exec-out", "screencap", "-p"))
     tap(start)
@@ -55,7 +61,10 @@ try:
     tap(pause)
     wait_for(["DAVOM ETISH"], "Pause overlay did not appear")
     adb("shell", "input", "keyevent", "3")
-    adb("shell", "am", "start", "-W", "-n", APP + "/.MainActivity")
+    wait_for(["Home"], "Android launcher did not appear")
+    # Android briefly suppresses app switches after the Home button is pressed.
+    time.sleep(5)
+    launch()
     wait_for(["DAVOM ETISH"], "Pause state lost across background/resume")
     logs = adb("logcat", "-d", "-s", "AndroidRuntime:E").decode("utf-8", "replace")
     assert "FATAL EXCEPTION" not in logs, logs
@@ -64,3 +73,4 @@ try:
 finally:
     (OUT / "android-final.png").write_bytes(adb("exec-out", "screencap", "-p"))
     (OUT / "android-logcat.txt").write_bytes(adb("logcat", "-d", "-t", "500"))
+    (OUT / "android-lifecycle.txt").write_bytes(adb("logcat", "-d", "-s", "ActivityTaskManager:I", "ActivityManager:I", "AndroidRuntime:E", "chromium:E"))
