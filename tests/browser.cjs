@@ -1,0 +1,50 @@
+'use strict';
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{pathToFileURL}=require('node:url');
+(async()=>{
+ const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+ const errors=[],requests=[],url=pathToFileURL(path.resolve('build/game.html')).href;
+ fs.mkdirSync('verification',{recursive:true});
+ try{
+  const page=await browser.newPage({viewport:{width:1280,height:800}});
+  page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(/^https?:/.test(r.url()))requests.push(r.url());});
+  await page.goto(url);await page.screenshot({path:'verification/desktop-menu.png'});
+  await page.getByRole('button',{name:'▶ BOSHLASH',exact:true}).click();
+  await page.waitForFunction(()=>Sound.context&&Sound.context.state==='running');
+  await page.evaluate(()=>{enemies=[];spikes=[];lasers=[];fallingBlocks=[];P.inv=9999;coins=[{x:1500,y:20,r:8,got:false,bt:0}];});
+  const before=await page.evaluate(()=>P.x);
+  await page.keyboard.down('ArrowRight');await page.waitForTimeout(250);await page.keyboard.press('Space');await page.keyboard.up('ArrowRight');
+  assert.ok(await page.evaluate(x=>P.x>x,before));assert.ok(await page.evaluate(()=>P.y<GY-P.h));
+  await page.getByRole('button',{name:'Pauza',exact:true}).click();
+  const paused=await page.evaluate(()=>timer);await page.waitForTimeout(200);assert.equal(await page.evaluate(()=>timer),paused);
+  await page.getByRole('button',{name:'▶ DAVOM ETISH',exact:true}).click();
+  const peak=await page.evaluate(async()=>{
+   const analyser=Sound.context.createAnalyser();analyser.fftSize=2048;Sound.master.connect(analyser);Sound.play('death');
+   await new Promise(r=>setTimeout(r,80));const samples=new Float32Array(analyser.fftSize);analyser.getFloatTimeDomainData(samples);Sound.master.disconnect(analyser);
+   return Math.max(...samples.map(Math.abs));
+  });
+  assert.ok(peak>.001,'sound must produce non-silent samples');
+  await page.screenshot({path:'verification/desktop-game.png'});
+  await page.getByRole('button',{name:'Ovozni o‘chirish',exact:true}).click();
+  assert.equal(await page.evaluate(()=>Sound.muted),true);
+  await page.reload();assert.equal(await page.evaluate(()=>Sound.muted),true);
+  const phone=await browser.newPage({viewport:{width:844,height:390},isMobile:true,hasTouch:true,deviceScaleFactor:1});
+  phone.on('pageerror',e=>errors.push(e.message));await phone.goto(url);await phone.getByRole('button',{name:'▶ BOSHLASH',exact:true}).tap();
+  await phone.evaluate(()=>{enemies=[];spikes=[];lasers=[];fallingBlocks=[];P.inv=9999;coins=[{x:1500,y:20,r:8,got:false,bt:0}];});
+  const right=await phone.locator('#bR').boundingBox(),jump=await phone.locator('#bJ').boundingBox();
+  const client=await phone.context().newCDPSession(phone);
+  const p1={x:right.x+right.width/2,y:right.y+right.height/2,id:1},p2={x:jump.x+jump.width/2,y:jump.y+jump.height/2,id:2};
+  await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[p1]});
+  await phone.waitForTimeout(120);
+  await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[p1,p2]});
+  await phone.waitForTimeout(120);
+  assert.ok(await phone.evaluate(()=>P.x>90&&P.y<GY-P.h),'multitouch should walk and jump simultaneously');
+  await phone.screenshot({path:'verification/mobile-game.png'});
+  await client.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
+  assert.equal(await phone.evaluate(()=>pointers.size),0,'cancelled touches must release movement');
+  const bounds=await phone.locator('#wrap').boundingBox();assert.ok(bounds.y>=0&&bounds.y+bounds.height<=391);
+  await phone.setViewportSize({width:393,height:852});await phone.screenshot({path:'verification/mobile-portrait.png'});
+  assert.deepEqual(errors,[]);assert.deepEqual(requests,[]);
+  fs.writeFileSync('verification/browser-tests.json',JSON.stringify({passed:true,audioPeak:peak,networkRequests:requests,pageErrors:errors,multitouch:true},null,2));
+  console.log('Browser, audio, pause, offline loading and mobile multitouch checks passed.');
+ }finally{await browser.close();}
+})().catch(error=>{console.error(error);process.exitCode=1;});
