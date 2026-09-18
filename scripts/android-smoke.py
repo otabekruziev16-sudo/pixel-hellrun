@@ -28,7 +28,15 @@ def tap(point):
 def wait_for(texts, message):
     deadline = time.monotonic() + 60
     while time.monotonic() < deadline:
-        point = find(ui(), texts)
+        tree = ui()
+        # A fresh Android emulator shows this one-time fullscreen tutorial.
+        if find(tree, ["Viewing full screen"]):
+            acknowledgement = find(tree, ["Got it"])
+            if acknowledgement:
+                tap(acknowledgement)
+                time.sleep(1)
+                continue
+        point = find(tree, texts)
         if point:
             return point
         time.sleep(1)
