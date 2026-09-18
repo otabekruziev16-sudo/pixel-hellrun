@@ -13,7 +13,7 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
   await page.evaluate(()=>{enemies=[];spikes=[];lasers=[];fallingBlocks=[];P.inv=9999;coins=[{x:1500,y:20,r:8,got:false,bt:0}];});
   const before=await page.evaluate(()=>P.x);
   await page.keyboard.down('ArrowRight');await page.waitForTimeout(250);await page.keyboard.press('Space');await page.keyboard.up('ArrowRight');
-  assert.ok(await page.evaluate(x=>P.x>x,before));assert.ok(await page.evaluate(()=>P.y<GY-P.h));
+  assert.ok(await page.evaluate(x=>P.x>x,before));await page.waitForFunction(()=>P.y<GY-P.h,{},{timeout:1500});
   await page.getByRole('button',{name:'Pauza',exact:true}).click();
   const paused=await page.evaluate(()=>timer);await page.waitForTimeout(200);assert.equal(await page.evaluate(()=>timer),paused);
   await page.getByRole('button',{name:'▶ DAVOM ETISH',exact:true}).click();
