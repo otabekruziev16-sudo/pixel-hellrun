@@ -3,32 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<meta name="theme-color" content="#050508">
+<meta name="theme-color" content="#08070d">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; connect-src 'none'; font-src 'self'; base-uri 'none'; form-action 'none'">
-<title>Pixel HellRun</title>
+<title>HellRun Hardcore</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main id="wrap" aria-label="Pixel HellRun o‘yini">
-<header id="toolbar"><span class="brand">PIXEL <b>HELLRUN</b></span><div class="toolbar-actions"><button id="soundBtn" class="tool" aria-label="Ovozni o‘chirish" aria-pressed="false">OVOZ: ON</button><button id="pauseBtn" class="tool" aria-label="Pauza" disabled>Ⅱ PAUZA</button></div></header>
-<div id="hud">
-<div><div class="hl">BALL</div><div class="hv" id="sV">0</div></div>
-<div><div class="hl">DARAJA</div><div class="hv" id="lV">1 / 100</div></div>
-<div><div class="hl">TANGA</div><div class="hv" id="cV">0 / 10</div></div>
-<div><div class="hl">HAYOT</div><div class="hearts" id="hrts"><span class="heart">♥</span><span class="heart">♥</span><span class="heart">♥</span></div></div>
-<div><div class="hl">VAQT</div><div class="hv" id="tV">60</div></div>
-</div>
-<div id="stage">
-<canvas id="c" width="680" height="340" aria-label="O‘yin maydoni"></canvas>
-<div id="lvlflash" aria-live="polite"></div>
-<div id="ov"><h1>PIXEL<br><span>HELLRUN</span></h1><p>100 daraja. Bitta maqsad: tirik qoling.<br>Tangalarni yig‘ing, tuzoqlardan o‘ting.</p><button class="obtn" id="startBtn">▶ BOSHLASH</button><p class="hint">← → yoki A / D — yurish · SPACE — sakrash<br>Telefon: pastdagi tugmalar · P / ESC — pauza</p></div>
-</div>
-<div id="ctrl">
-<div class="movement"><button class="cb" id="bL" aria-label="Chapga yurish">◀</button><button class="cb" id="bR" aria-label="O‘ngga yurish">▶</button></div>
-<span id="controlHint">TANGALARNI YIG‘ING</span>
-<button class="cb jump" id="bJ" aria-label="Sakrash">SAKRA ▲</button>
-</div>
+<main id="wrap" aria-label="HellRun Hardcore o‘yini">
+ <canvas id="c" aria-label="To‘liq ekranli o‘yin maydoni"></canvas>
+ <header id="toolbar"><div class="brand"><b>HELL<span>RUN</span></b><small>HARDCORE · 2.0</small></div><div class="toolbar-actions"><button id="mapBtn" class="tool" aria-label="100 daraja xaritasi">▥<span>XARITA</span></button><button id="soundBtn" class="tool" aria-label="Ovozni o‘chirish" aria-pressed="false">♪</button><button id="pauseBtn" class="tool" aria-label="Pauza" disabled>Ⅱ</button></div></header>
+ <section id="hud" aria-label="O‘yin holati"><div><small>DARAJA</small><strong id="levelValue">01<span>/100</span></strong></div><div><small>TANGALAR</small><strong id="coinValue" class="gold">0/9</strong></div><div><small>O‘LIMLAR</small><strong id="deathValue">0</strong></div><div><small>VAQT</small><strong id="timeValue">60</strong></div></section>
+ <div id="routeProgress"><i id="routeFill"></i></div><div id="toast" role="status" aria-live="polite"></div>
+ <div id="checkpointBadge"><i></i><span id="checkpointText">KIRISH NUQTASI</span></div>
+ <div id="ctrl"><div class="movement"><button class="cb" id="bL" aria-label="Chapga yurish">◀</button><button class="cb" id="bR" aria-label="O‘ngga yurish">▶</button></div><span class="keyboard-hint">A / D · SPACE<br><small>P — PAUZA</small></span><button class="cb jump" id="bJ" aria-label="Sakrash">↑<span>SAKRA</span></button></div>
+ <div id="ov" class="screen" role="dialog" aria-modal="true" aria-label="O‘yin menyusi"><div id="panel" class="panel"></div></div>
+ <section id="mapScreen" class="screen" hidden aria-label="100 darajali zina xaritasi"><div class="map-shell"><header class="map-header"><div><span class="eyebrow">DO‘ZAXGA KO‘TARILISH</span><h2>100 DARAJA</h2><p id="mapSummary"></p></div><button id="closeMap" class="tool" aria-label="Xaritani yopish">×</button></header><div class="map-legend"><span><i class="done"></i>O‘TILGAN</span><span><i class="open"></i>OCHIQ</span><span><i></i>QULFLANGAN</span></div><div id="mapScroll"><div id="mapRoute"></div></div><footer class="map-footer">Har bir chiqish — keyingi zinaga yo‘l.</footer></div></section>
 </main>
+<script src="core.js"></script>
+<script src="audio.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

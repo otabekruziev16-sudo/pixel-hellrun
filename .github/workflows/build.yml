@@ -46,6 +46,15 @@ jobs:
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
       - name: Build and verify APK
         run: bash scripts/build-android.sh
+      - name: Preserve APK signing tool for private release signing
+        run: |
+          mkdir -p build/signing-tool
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" build/signing-tool/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HellRun-Android-signing-tool
+          path: build/signing-tool/apksigner.jar
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
           name: HellRun-Android

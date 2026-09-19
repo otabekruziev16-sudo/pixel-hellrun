@@ -1,50 +1,24 @@
 'use strict';
 const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{pathToFileURL}=require('node:url');
 (async()=>{
- const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
- const errors=[],requests=[],url=pathToFileURL(path.resolve('build/game.html')).href;
- fs.mkdirSync('verification',{recursive:true});
+ const browser=await chromium.launch({headless:true,args:['--no-sandbox']});const errors=[],requests=[],url=pathToFileURL(path.resolve('build/game.html')).href;fs.mkdirSync('verification',{recursive:true});
+ function watch(page){page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(/^https?:/.test(r.url()))requests.push(r.url());});}
+ async function full(page){const v=page.viewportSize(),r=await page.locator('#c').boundingBox();assert.ok(Math.abs(r.width-v.width)<2&&Math.abs(r.height-v.height)<2&&r.x===0&&r.y===0,JSON.stringify({v,r}));for(const id of ['bL','bR','bJ']){const b=await page.locator('#'+id).boundingBox();assert.ok(b.x>=0&&b.y>=0&&b.x+b.width<=v.width+1&&b.y+b.height<=v.height+1&&b.width>=56&&b.height>=56,id+JSON.stringify(b));}}
  try{
-  const page=await browser.newPage({viewport:{width:1280,height:800}});
-  page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(/^https?:/.test(r.url()))requests.push(r.url());});
-  await page.goto(url);await page.screenshot({path:'verification/desktop-menu.png'});
-  await page.getByRole('button',{name:'▶ BOSHLASH',exact:true}).click();
-  await page.waitForFunction(()=>Sound.context&&Sound.context.state==='running');
-  await page.evaluate(()=>{enemies=[];spikes=[];lasers=[];fallingBlocks=[];P.inv=9999;coins=[{x:1500,y:20,r:8,got:false,bt:0}];});
-  const before=await page.evaluate(()=>P.x);
-  await page.keyboard.down('ArrowRight');await page.waitForTimeout(250);await page.keyboard.press('Space');await page.keyboard.up('ArrowRight');
-  assert.ok(await page.evaluate(x=>P.x>x,before));await page.waitForFunction(()=>P.y<GY-P.h,{},{timeout:1500});
-  await page.getByRole('button',{name:'Pauza',exact:true}).click();
-  const paused=await page.evaluate(()=>timer);await page.waitForTimeout(200);assert.equal(await page.evaluate(()=>timer),paused);
-  await page.getByRole('button',{name:'▶ DAVOM ETISH',exact:true}).click();
-  const peak=await page.evaluate(async()=>{
-   const analyser=Sound.context.createAnalyser();analyser.fftSize=2048;Sound.master.connect(analyser);Sound.play('death');
-   await new Promise(r=>setTimeout(r,80));const samples=new Float32Array(analyser.fftSize);analyser.getFloatTimeDomainData(samples);Sound.master.disconnect(analyser);
-   return Math.max(...samples.map(Math.abs));
-  });
-  assert.ok(peak>.001,'sound must produce non-silent samples');
-  await page.screenshot({path:'verification/desktop-game.png'});
-  await page.getByRole('button',{name:'Ovozni o‘chirish',exact:true}).click();
-  assert.equal(await page.evaluate(()=>Sound.muted),true);
-  await page.reload();assert.equal(await page.evaluate(()=>Sound.muted),true);
-  const phone=await browser.newPage({viewport:{width:844,height:390},isMobile:true,hasTouch:true,deviceScaleFactor:1});
-  phone.on('pageerror',e=>errors.push(e.message));await phone.goto(url);await phone.getByRole('button',{name:'▶ BOSHLASH',exact:true}).tap();
-  await phone.evaluate(()=>{enemies=[];spikes=[];lasers=[];fallingBlocks=[];P.inv=9999;coins=[{x:1500,y:20,r:8,got:false,bt:0}];});
-  const right=await phone.locator('#bR').boundingBox(),jump=await phone.locator('#bJ').boundingBox();
-  const client=await phone.context().newCDPSession(phone);
-  const p1={x:right.x+right.width/2,y:right.y+right.height/2,id:1},p2={x:jump.x+jump.width/2,y:jump.y+jump.height/2,id:2};
-  await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[p1]});
-  await phone.waitForTimeout(120);
-  await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[p1,p2]});
-  await phone.waitForTimeout(120);
-  assert.ok(await phone.evaluate(()=>P.x>90&&P.y<GY-P.h),'multitouch should walk and jump simultaneously');
-  await phone.screenshot({path:'verification/mobile-game.png'});
-  await client.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
-  assert.equal(await phone.evaluate(()=>pointers.size),0,'cancelled touches must release movement');
-  const bounds=await phone.locator('#wrap').boundingBox();assert.ok(bounds.y>=0&&bounds.y+bounds.height<=391);
-  await phone.setViewportSize({width:393,height:852});await phone.screenshot({path:'verification/mobile-portrait.png'});
-  assert.deepEqual(errors,[]);assert.deepEqual(requests,[]);
-  fs.writeFileSync('verification/browser-tests.json',JSON.stringify({passed:true,audioPeak:peak,networkRequests:requests,pageErrors:errors,multitouch:true},null,2));
-  console.log('Browser, audio, pause, offline loading and mobile multitouch checks passed.');
+  const page=await browser.newPage({viewport:{width:1280,height:800}});watch(page);await page.goto(url);await page.getByRole('button',{name:'▶ BOSHLASH',exact:true}).waitFor();await page.screenshot({path:'verification/desktop-menu.png'});await full(page);
+  await page.getByRole('button',{name:'▶ BOSHLASH',exact:true}).click();await page.waitForFunction(()=>game.state==='playing'&&Sound.context?.state==='running');
+  const before=await page.evaluate(()=>game.player.x);await page.keyboard.down('ArrowRight');await page.waitForTimeout(150);await page.keyboard.press('Space');await page.keyboard.up('ArrowRight');await page.waitForFunction(()=>game.player.y<-40);assert.ok(await page.evaluate(x=>game.player.x>x,before));
+  await page.locator('#pauseBtn').click();assert.equal(await page.evaluate(()=>game.state),'paused');const timer=await page.evaluate(()=>game.timer);await page.waitForTimeout(120);assert.equal(await page.evaluate(()=>game.timer),timer);await page.getByRole('button',{name:'▶ DAVOM ETISH',exact:true}).click();await page.waitForFunction(()=>game.state==='playing');
+  const peak=await page.evaluate(async()=>{const a=Sound.context.createAnalyser();a.fftSize=2048;Sound.master.connect(a);Sound.play('coin');await new Promise(r=>setTimeout(r,65));const s=new Float32Array(a.fftSize);a.getFloatTimeDomainData(s);Sound.master.disconnect(a);return Math.max(...s.map(Math.abs));});assert.ok(peak>.001);
+  await page.evaluate(async()=>{game.progress.unlocked=7;await startGame(7);for(const c of game.world.coins)if(c.id<4)c.got=true;const p=game.world.platforms[4];Object.assign(game.player,{x:p.x+p.w/2-12,y:p.y-32,vy:0,grounded:true});game.step();pauseGame();});
+  assert.equal(await page.evaluate(()=>game.run.checkpoint),4);await page.reload();await page.getByRole('button',{name:'▶ DAVOM ETISH',exact:true}).click();await page.waitForFunction(()=>game.state==='playing');assert.equal(await page.evaluate(()=>game.level),7);assert.equal(await page.evaluate(()=>game.run.checkpoint),4);
+  await page.evaluate(()=>{for(let i=0;i<5;i++){game.die();for(let j=0;j<39;j++)game.step();}snapCamera();});assert.equal(await page.evaluate(()=>game.level),7);assert.equal(await page.evaluate(()=>game.run.deaths),5);await page.screenshot({path:'verification/desktop-game.png'});
+  await page.locator('#mapBtn').click();assert.equal(await page.locator('.level-node').count(),100);assert.equal(await page.locator('[data-level="100"]').isDisabled(),true);await page.screenshot({path:'verification/stair-map.png'});await page.locator('#mapScroll').evaluate(el=>el.scrollTop=0);assert.ok(await page.locator('[data-level="100"]').isVisible());await page.locator('#closeMap').click();await page.getByRole('button',{name:'▶ DAVOM ETISH',exact:true}).click();await page.locator('#soundBtn').click();assert.equal(await page.evaluate(()=>Sound.muted),true);await page.reload();assert.equal(await page.evaluate(()=>Sound.muted),true);
+  const phone=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true,deviceScaleFactor:1});watch(phone);await phone.goto(url);await full(phone);await phone.screenshot({path:'verification/phone-portrait-menu.png'});await phone.getByRole('button',{name:'▶ BOSHLASH',exact:true}).tap();await phone.waitForFunction(()=>game.state==='playing');await phone.screenshot({path:'verification/phone-portrait-game.png'});
+  const right=await phone.locator('#bR').boundingBox(),jump=await phone.locator('#bJ').boundingBox(),client=await phone.context().newCDPSession(phone);const p1={x:right.x+right.width/2,y:right.y+right.height/2,id:1},p2={x:jump.x+jump.width/2,y:jump.y+jump.height/2,id:2};const start=await phone.evaluate(()=>game.player.x);
+  await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[p1]});await phone.waitForTimeout(100);await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[p1,p2]});await phone.waitForTimeout(100);assert.ok(await phone.evaluate(x=>game.player.x>x+20&&game.player.y<-45,start));await client.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});assert.equal(await phone.evaluate(()=>pointers.size),0);assert.equal(await phone.evaluate(()=>game.input.right),false);
+  await phone.setViewportSize({width:844,height:390});await full(phone);await phone.screenshot({path:'verification/phone-landscape-game.png'});await phone.evaluate(()=>showHome());await phone.screenshot({path:'verification/phone-landscape-menu.png'});
+  for(const viewport of [{width:360,height:640},{width:320,height:568}]){await phone.setViewportSize(viewport);await full(phone);const panel=await phone.locator('#panel').boundingBox();assert.ok(panel.y>=0&&panel.y+panel.height<=viewport.height+1,'menu cropped at '+JSON.stringify(viewport));}
+  assert.deepEqual(errors,[]);assert.deepEqual(requests,[]);fs.writeFileSync('verification/browser-tests.json',JSON.stringify({passed:true,audioPeak:peak,fullScreenPortraitAndLandscape:true,multitouch:true,progressReload:true,checkpointAfterFiveDeaths:true,mapLevels:100,networkRequests:requests,pageErrors:errors},null,2));console.log('Full viewport, mobile multitouch, audio, progress reload and 100-level map checks passed.');
  }finally{await browser.close();}
-})().catch(error=>{console.error(error);process.exitCode=1;});
+})().catch(e=>{console.error(e);process.exitCode=1;});

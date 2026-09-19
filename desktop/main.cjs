@@ -5,7 +5,7 @@ const smoke=process.argv.includes('--smoke-test');
 let win;
 app.whenReady().then(async()=>{
  Menu.setApplicationMenu(null);
- win=new BrowserWindow({title:'Pixel HellRun',width:1120,height:760,minWidth:700,minHeight:490,backgroundColor:'#050508',autoHideMenuBar:true,icon:path.join(__dirname,'../build/icon.png'),show:!smoke,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true}});
+ win=new BrowserWindow({title:'HellRun Hardcore',width:1280,height:800,minWidth:600,minHeight:380,backgroundColor:'#08070d',autoHideMenuBar:true,icon:path.join(__dirname,'../build/icon.png'),show:!smoke,webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true}});
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',event=>event.preventDefault());
  win.webContents.session.setPermissionRequestHandler((contents,permission,callback)=>callback(false));
@@ -14,8 +14,8 @@ app.whenReady().then(async()=>{
  await win.loadFile(path.join(__dirname,'../build/game.html'));
  if(smoke){
   try{
-   const result=await win.webContents.executeJavaScript('(async()=>{await startGame();const before=P.x;keys.add("right");for(let i=0;i<30;i++)update();keys.clear();const moved=P.x>before;die();for(let i=0;i<51;i++)update();return {title:document.title,moved,lives,audio:!!Sound.context,html:document.querySelector("#c").width,dead:P.dead};})()',true);
-   if(!result.moved||result.lives!==2||!result.audio||result.html!==680||result.dead)throw Error(JSON.stringify(result));
+   const result=await win.webContents.executeJavaScript('(async()=>{await startGame();const before=game.player.x;game.input.right=true;for(let i=0;i<12;i++)game.step();game.clearInput();const moved=game.player.x>before;game.die();for(let i=0;i<40;i++)game.step();pauseGame();const save=JSON.parse(localStorage.getItem(SAVE_KEY));return {title:document.title,moved,deaths:game.run.deaths,audio:!!Sound.context,fullscreen:Math.abs(document.querySelector("#c").getBoundingClientRect().width-innerWidth)<2,level:save.currentLevel,dead:game.player.dead};})()',true);
+   if(!result.moved||result.deaths!==1||!result.audio||!result.fullscreen||result.dead||result.level!==1)throw Error(JSON.stringify(result));
    const capture=await win.webContents.capturePage();
    const output=process.env.HELLRUN_VERIFY_DIR||path.resolve('verification');
    fs.mkdirSync(output,{recursive:true});fs.writeFileSync(path.join(output,'windows-game.png'),capture.toPNG());fs.writeFileSync(path.join(output,'windows-smoke.json'),JSON.stringify(result,null,2));app.exit(0);

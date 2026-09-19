@@ -1,4 +1,4 @@
-package uz.otabekruziev.pixelhellrun;
+package uz.otabekruziev.pixelhellrun.hardcore;
 
 import android.app.Activity;
 import android.app.AlertDialog;

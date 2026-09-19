@@ -1,7 +1,7 @@
-import pathlib, re, subprocess, time, xml.etree.ElementTree as ET
+import pathlib, re, struct, subprocess, time, xml.etree.ElementTree as ET
 OUT = pathlib.Path("verification")
 OUT.mkdir(exist_ok=True)
-APP = "uz.otabekruziev.pixelhellrun"
+APP = "uz.otabekruziev.pixelhellrun.hardcore"
 def adb(*args):
     return subprocess.check_output(["adb", *args], timeout=30)
 def ui():
@@ -25,6 +25,15 @@ def find(root, texts):
     return None
 def tap(point):
     adb("shell", "input", "tap", str(point[0]), str(point[1]))
+def screenshot(name, landscape=None):
+    for _ in range(10):
+        data = adb("exec-out", "screencap", "-p")
+        width, height = struct.unpack(">II", data[16:24])
+        if landscape is None or (width > height) == landscape:
+            (OUT / name).write_bytes(data)
+            return
+        time.sleep(1)
+    raise AssertionError("Screen did not rotate: " + name)
 def launch():
     # Use the launcher intent and flags to resume the same application task.
     output = adb("shell", "am", "start", "-W", "-a", "android.intent.action.MAIN",
@@ -49,14 +58,16 @@ def wait_for(texts, message):
     raise AssertionError(message)
 
 try:
+    adb("shell", "settings", "put", "system", "accelerometer_rotation", "0")
+    adb("shell", "settings", "put", "system", "user_rotation", "0")
     print(adb("install", "-r", "release/HellRun-Android.apk").decode())
     adb("logcat", "-c")
     launch()
     start = wait_for(["BOSHLASH"], "Start button did not render in the Android WebView")
-    (OUT / "android-menu.png").write_bytes(adb("exec-out", "screencap", "-p"))
+    screenshot("android-portrait-menu.png", False)
     tap(start)
     time.sleep(1)
-    (OUT / "android-game.png").write_bytes(adb("exec-out", "screencap", "-p"))
+    screenshot("android-portrait-game.png", False)
     pause = wait_for(["PAUZA", "Pauza"], "Pause control missing after starting")
     tap(pause)
     wait_for(["DAVOM ETISH"], "Pause overlay did not appear")
@@ -66,9 +77,19 @@ try:
     time.sleep(5)
     launch()
     wait_for(["DAVOM ETISH"], "Pause state lost across background/resume")
+    adb("shell", "settings", "put", "system", "user_rotation", "1")
+    screenshot("android-landscape-pause.png", True)
+    tap(wait_for(["DAVOM ETISH"], "Resume button missing after rotation"))
+    time.sleep(1)
+    screenshot("android-landscape-game.png", True)
+    tap(wait_for(["Pauza", "PAUZA"], "Pause button missing in landscape"))
+    wait_for(["DAVOM ETISH"], "Pause did not save the game")
+    adb("shell", "am", "force-stop", APP)
+    launch()
+    wait_for(["DAVOM ETISH"], "Saved game unavailable after terminating the process")
     logs = adb("logcat", "-d", "-s", "AndroidRuntime:E").decode("utf-8", "replace")
     assert "FATAL EXCEPTION" not in logs, logs
-    (OUT / "android-smoke.txt").write_text("PASS: install, launch, WebView render, start, pause, background/resume, no Java crash.\n")
+    (OUT / "android-smoke.txt").write_text("PASS: install, portrait and landscape, start, pause, background/resume, process restart with saved progress, no Java crash.\n")
     print("Android emulator smoke check passed.")
 finally:
     (OUT / "android-final.png").write_bytes(adb("exec-out", "screencap", "-p"))

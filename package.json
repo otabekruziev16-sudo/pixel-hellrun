@@ -1,6 +1,6 @@
 {
   "name": "pixel-hellrun",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "private": true,
   "description": "Pixel HellRun — offline platformer for Android and Windows",
   "author": "Otabek Ruziev",
@@ -17,8 +17,8 @@
     "playwright": "1.62.1"
   },
   "build": {
-    "appId": "uz.otabekruziev.pixelhellrun",
-    "productName": "Pixel HellRun",
+    "appId": "uz.otabekruziev.pixelhellrun.hardcore",
+    "productName": "HellRun Hardcore",
     "asar": true,
     "files": [
       "desktop/main.cjs",
