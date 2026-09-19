@@ -26,6 +26,11 @@ def find(root, texts):
     return None
 def tap(point):
     adb("shell", "input", "tap", str(point[0]), str(point[1]))
+def rotate(rotation):
+    # Update the active display through WindowManager, which also refreshes
+    # the orientation immediately; a Settings database write alone may not.
+    print(adb("shell", "wm", "user-rotation", "lock", str(rotation)).decode(), flush=True)
+    print("Display rotation: " + adb("shell", "wm", "user-rotation").decode(), flush=True)
 def screenshot(name, landscape=None):
     for _ in range(10):
         data = adb("exec-out", "screencap", "-p")
@@ -59,8 +64,7 @@ def wait_for(texts, message):
     raise AssertionError(message)
 
 try:
-    adb("shell", "settings", "put", "system", "accelerometer_rotation", "0")
-    adb("shell", "settings", "put", "system", "user_rotation", "0")
+    rotate(0)
     print(adb("install", "-r", "release/HellRun-Android.apk").decode())
     adb("logcat", "-c")
     launch()
@@ -78,7 +82,7 @@ try:
     time.sleep(5)
     launch()
     wait_for(["DAVOM ETISH"], "Pause state lost across background/resume")
-    adb("shell", "settings", "put", "system", "user_rotation", "1")
+    rotate(1)
     screenshot("android-landscape-pause.png", True)
     tap(wait_for(["DAVOM ETISH"], "Resume button missing after rotation"))
     time.sleep(1)
@@ -93,6 +97,7 @@ try:
     (OUT / "android-smoke.txt").write_text("PASS: install, portrait and landscape, start, pause, background/resume, process restart with saved progress, no Java crash.\n")
     print("Android emulator smoke check passed.")
 finally:
+    (OUT / "android-display.txt").write_bytes(adb("shell", "dumpsys", "window", "displays"))
     (OUT / "android-final.png").write_bytes(adb("exec-out", "screencap", "-p"))
     (OUT / "android-logcat.txt").write_bytes(adb("logcat", "-d", "-t", "500"))
     (OUT / "android-lifecycle.txt").write_bytes(adb("logcat", "-d", "-s", "ActivityTaskManager:I", "ActivityManager:I", "AndroidRuntime:E", "chromium:E"))
