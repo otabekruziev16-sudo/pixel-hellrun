@@ -5,15 +5,16 @@ APP = "uz.otabekruziev.pixelhellrun.hardcore"
 def adb(*args):
     return subprocess.check_output(["adb", *args], timeout=30)
 def ui():
-    adb("shell", "rm", "-f", "/sdcard/hellrun-window.xml")
-    adb("shell", "uiautomator", "dump", "/sdcard/hellrun-window.xml")
-    data = adb("exec-out", "cat", "/sdcard/hellrun-window.xml")
     try:
+        adb("shell", "rm", "-f", "/sdcard/hellrun-window.xml")
+        adb("shell", "uiautomator", "dump", "/sdcard/hellrun-window.xml")
+        data = adb("exec-out", "cat", "/sdcard/hellrun-window.xml")
         root = ET.fromstring(data)
         (OUT / "android-window.xml").write_bytes(data)
         return root
-    except ET.ParseError:
-        # Accessibility can be briefly unavailable during first launch/rotation.
+    except (ET.ParseError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        # The accessibility helper may restart during boot/rotation. The bounded
+        # wait_for still fails if the requested application UI never appears.
         return ET.Element("hierarchy")
 def find(root, texts):
     for node in root.iter("node"):
@@ -87,8 +88,8 @@ try:
     adb("shell", "am", "force-stop", APP)
     launch()
     wait_for(["DAVOM ETISH"], "Saved game unavailable after terminating the process")
-    logs = adb("logcat", "-d", "-s", "AndroidRuntime:E").decode("utf-8", "replace")
-    assert "FATAL EXCEPTION" not in logs, logs
+    logs = adb("logcat", "-d", "-b", "crash").decode("utf-8", "replace")
+    assert ("Process: " + APP) not in logs, logs
     (OUT / "android-smoke.txt").write_text("PASS: install, portrait and landscape, start, pause, background/resume, process restart with saved progress, no Java crash.\n")
     print("Android emulator smoke check passed.")
 finally:
