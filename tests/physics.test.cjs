@@ -1,6 +1,6 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const {Engine,generateLevel,difficulty,freshProgress,normalizeProgress,STEP}=require('../core.js');
+const {Engine,generateLevel,difficulty,freshProgress,normalizeProgress,STEP,MAX_LIVES,LIFE_COST}=require('../core.js');
 function game(n=1){const p=freshProgress();p.unlocked=n;p.currentLevel=n;const g=new Engine(p);g.start(n);return g;}
 function clearHazards(g){g.world.spikes=[];g.world.saws=[];g.world.lasers=[];}
 function place(g,pl){Object.assign(g.player,{x:pl.x+pl.w/2-12,y:pl.y-32,vx:0,vy:0,grounded:true,platform:pl.id,dead:false,inv:0});g.clearInput();}
@@ -56,7 +56,8 @@ test('every elevated coin can be collected by jumping from its own platform',()=
 test('many deaths and full process reload retain level, checkpoint and collected coins',()=>{
  const g=game(37),cp=g.world.platforms[4];for(const c of g.world.coins)if(c.id<4)c.got=true;place(g,cp);g.step();assert.equal(g.run.checkpoint,4);
  const collected=g.world.coins.filter(c=>c.got).map(c=>c.id);
- for(let i=0;i<8;i++){g.die();for(let t=0;t<39;t++)g.step();assert.equal(g.player.dead,false);assert.equal(g.level,37);assert.equal(g.player.platform,4);}
+ g.progress.wallet=40;
+ for(let i=0;i<8;i++){g.die();for(let t=0;t<39;t++)g.step();if(g.state==='gameover')assert.equal(g.buyLife(),true);assert.equal(g.player.dead,false);assert.equal(g.level,37);assert.equal(g.player.platform,4);}
  const restored=new Engine(JSON.parse(JSON.stringify(g.progress)));restored.start();assert.equal(restored.level,37);assert.equal(restored.run.deaths,8);assert.equal(restored.player.platform,4);assert.deepEqual(restored.world.coins.filter(c=>c.got).map(c=>c.id),collected);
 });
 test('checkpoint never strands uncollected coins behind rising lava',()=>{
@@ -87,4 +88,39 @@ test('save parser repairs invalid data without unlocking inaccessible levels',()
 test('60, 120 and 240 Hz render scheduling yields the same physics',()=>{
  const results=[];for(const hz of [60,120,240]){const g=game();clearHazards(g);g.world.platforms=[{id:0,x:-100,y:0,w:1200,h:20,checkpoint:true}];g.input.right=true;let accumulator=0,last=0;for(let i=1;i<=hz;i++){const t=i*1000/hz;accumulator+=t-last;last=t;while(accumulator>=STEP){g.step();accumulator-=STEP;}}results.push([g.player.x,g.timer]);}
  for(const [x,t] of results){assert.ok(Math.abs(x-results[0][0])<4.2);assert.ok(Math.abs(t-results[0][1])<.018);}
+});
+test('three deaths exhaust exactly three lives and reloading or selecting a level cannot refill them',()=>{
+ const g=game(7);assert.equal(g.progress.lives,MAX_LIVES);
+ for(let life=2;life>=0;life--){g.die();g.die();assert.equal(g.progress.lives,life);for(let t=0;t<39;t++)g.step();}
+ assert.equal(g.run.deaths,3);assert.equal(g.state,'gameover');
+ const before=[g.player.x,g.player.y,g.timer,g.ticks];for(let t=0;t<120;t++)g.step();assert.deepEqual([g.player.x,g.player.y,g.timer,g.ticks],before);
+ const restored=new Engine(JSON.parse(JSON.stringify(g.progress)));restored.start();assert.equal(restored.state,'gameover');assert.equal(restored.progress.lives,0);restored.start(1);assert.equal(restored.state,'gameover');
+});
+test('each pickup funds the wallet once and a reload does not award it again',()=>{
+ const g=game();clearHazards(g);const c=g.world.coins[0];Object.assign(g.player,{x:c.x-12,y:c.y-16,vy:0,grounded:false});g.step();assert.equal(c.got,true);assert.equal(g.progress.wallet,1);
+ for(let t=0;t<5;t++)g.step();assert.equal(g.progress.wallet,1);
+ const restored=new Engine(JSON.parse(JSON.stringify(g.progress)));restored.start();assert.equal(restored.progress.wallet,1);assert.equal(restored.world.coins[0].got,true);
+});
+test('buying a life debits once, restores the checkpoint and preserves all collected exit coins',()=>{
+ const g=game(17);for(const c of g.world.coins)if(c.id<4)c.got=true;place(g,g.world.platforms[4]);g.step();g.progress.wallet=7;
+ const coins=g.world.coins.filter(c=>c.got).map(c=>c.id);
+ for(let i=0;i<3;i++){g.die();for(let t=0;t<39;t++)g.step();}
+ assert.equal(g.buyLife(),true);assert.equal(g.buyLife(),false);assert.equal(g.progress.wallet,7-LIFE_COST);assert.equal(g.progress.lives,1);assert.equal(g.player.platform,4);assert.equal(g.level,17);assert.equal(g.state,'playing');
+ assert.deepEqual(g.world.coins.filter(c=>c.got).map(c=>c.id),coins);
+ const restored=new Engine(JSON.parse(JSON.stringify(g.progress)));restored.start();assert.equal(restored.progress.wallet,2);assert.equal(restored.progress.lives,1);assert.equal(restored.player.platform,4);
+});
+test('insufficient funds cannot buy life; free retry resets only this level and permits earning again',()=>{
+ const g=game(17);clearHazards(g);g.progress.completed=[1,2];g.progress.wallet=4;for(const c of g.world.coins)if(c.id<4)c.got=true;place(g,g.world.platforms[4]);g.step();
+ for(let i=0;i<3;i++){g.die();for(let t=0;t<39;t++)g.step();}
+ const before=JSON.stringify(g.progress);assert.equal(g.buyLife(),false);assert.equal(JSON.stringify(g.progress),before);
+ assert.equal(g.retryLevel(),true);assert.equal(g.level,17);assert.equal(g.progress.unlocked,17);assert.deepEqual(g.progress.completed,[1,2]);assert.equal(g.progress.wallet,4);assert.equal(g.progress.lives,3);assert.equal(g.run.checkpoint,0);assert.equal(g.world.coins.filter(c=>c.got).length,0);assert.equal(g.run.deaths,3);
+ clearHazards(g);const c=g.world.coins[0];Object.assign(g.player,{x:c.x-12,y:c.y-16,vy:0,grounded:false});g.step();assert.equal(g.progress.wallet,5);
+});
+test('old saves receive their collected coins once and spent wallets stay empty after upgrade',()=>{
+ const old={version:2,currentLevel:7,unlocked:7,totalDeaths:9,completed:[1],runs:{1:{checkpoint:4,collected:[1,2,3],deaths:3,remaining:50},7:{checkpoint:4,collected:[1,2,3,5,6],deaths:6,remaining:40}}};
+ const g=new Engine(old);assert.equal(g.progress.version,3);assert.equal(g.progress.wallet,8);assert.equal(g.progress.lives,3);assert.equal(g.progress.currentLevel,7);assert.deepEqual(g.progress.completed,[1]);
+ g.progress.wallet=0;g.progress.lives=0;const restored=new Engine(JSON.parse(JSON.stringify(g.progress)));assert.equal(restored.progress.wallet,0);assert.equal(restored.progress.lives,0);assert.equal(restored.run.checkpoint,4);
+});
+test('completing a level refills three lives without charging the wallet or changing collected coins',()=>{
+ const g=game();clearHazards(g);g.progress.wallet=2;g.progress.lives=1;for(const c of g.world.coins)c.got=true;place(g,g.world.platforms.at(-1));g.player.x=g.world.exit.x;g.step();assert.equal(g.state,'complete');assert.equal(g.progress.lives,3);assert.equal(g.progress.wallet,2);g.start(2);assert.equal(g.progress.lives,3);
 });

@@ -1,80 +1,105 @@
 'use strict';
 const $=id=>document.getElementById(id),cv=$('c'),ctx=cv.getContext('2d');
-const SAVE_KEY='hellrun-hardcore-v2',Core=HellRunCore;
+const SAVE_KEY='hellrun-hardcore-v2',Core=HellRunCore,T=(key,params)=>I18n.t(key,params);
+const escapeHTML=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const E=(key,params)=>escapeHTML(T(key,params)),economy={lives:Core.MAX_LIVES,cost:Core.LIFE_COST};
 let saved=null,hadSave=false,saveFailed=false;
-try{saved=JSON.parse(localStorage.getItem(SAVE_KEY));hadSave=saved?.version===2;Sound.muted=localStorage.getItem('hellrun-muted')==='true';}catch{}
-let W=800,H=450,zoom=1,dpr=1,camX=-70,camY=-250,lt=null,accumulator=0,view='home',mapReturn='home',helpReturn='home',toastUntil=0,shake=0;
+try{saved=JSON.parse(localStorage.getItem(SAVE_KEY));hadSave=[2,3].includes(saved?.version);Sound.muted=localStorage.getItem('hellrun-muted')==='true';}catch{}
+let W=800,H=450,zoom=1,dpr=1,camX=-70,camY=-250,lt=null,accumulator=0,view='home',mapReturn='home',helpReturn='home',languageReturn='home',toastUntil=0,shake=0;
 const keys=new Set(),pointers=new Map();let particles=[],lastHud='';
 const game=new Core.Engine(saved,onGameEvent);
-Sound.updateButton();
-function persist(progress){try{localStorage.setItem(SAVE_KEY,JSON.stringify(progress));hadSave=true;saveFailed=false;}catch{saveFailed=true;toast('Saqlash uchun qurilmada bo‘sh joy kerak.');}}
+function persist(progress){try{localStorage.setItem(SAVE_KEY,JSON.stringify(progress));hadSave=true;saveFailed=false;}catch{saveFailed=true;toast(T('saveError'));}}
 function onGameEvent(name,data){
  if(name==='save'){persist(data);return;}
- Sound.play(name);
- const p=game.player;
+ Sound.play(name);const p=game.player;
  if(name==='jump'||name==='land')burst(p.x+p.w/2,p.y+p.h,'#c3a6bb',6);
  if(name==='coin')burst(data.x,data.y,'#ffce63',14);
- if(name==='checkpoint'){toast('NAZORAT NUQTASI SAQLANDI');burst(p.x+12,p.y,'#77efd2',25);}
- if(name==='door')toast('BARCHA TANGALAR OLINDI · CHIQISH OCHIQ');
- if(name==='death'){shake=9;burst(p.x+12,p.y+16,'#ff3f63',24);clearInput();toast((data==='vaqt'?'VAQT TUGADI':'HALOK BO‘LDINGIZ')+' · NAZORATDAN QAYTASIZ');}
+ if(name==='checkpoint'){toast(T('checkpointSaved'));burst(p.x+12,p.y,'#77efd2',25);}
+ if(name==='door')toast(T('doorOpen'));
+ if(name==='death'){shake=9;burst(p.x+12,p.y+16,'#ff3f63',24);clearInput();toast(T(data==='vaqt'?'timeUp':'died')+' · ♥ '+game.progress.lives+'/'+Core.MAX_LIVES);}
  if(name==='respawn'){snapCamera();clearInput();}
+ if(name==='revive')toast(T('livesAdded'));
+ if(name==='gameover'){clearInput();showGameOver();}
  if(name==='complete'||name==='win'){clearInput();showComplete();}
  hud();
 }
 function text(id,value){if($(id).textContent!==String(value))$(id).textContent=value;}
+function applyLocale(){
+ document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=T(el.dataset.i18n));
+ document.querySelectorAll('[data-i18n-aria]').forEach(el=>el.setAttribute('aria-label',T(el.dataset.i18nAria)));
+ text('langBtn',I18n.lang.toUpperCase());Sound.updateButton();lastHud='';hud();
+}
+function hearts(){return Array.from({length:Core.MAX_LIVES},(_,i)=>'<i aria-hidden="true" class="'+(i<game.progress.lives?'alive':'')+'">♥</i>').join('');}
+function resources(){return '<div class="resources"><span class="hearts" aria-label="'+escapeHTML(T('lives')+' '+game.progress.lives+'/'+Core.MAX_LIVES)+'">'+hearts()+'</span><span class="gold">◈ '+game.progress.wallet+' <small>'+E('wallet')+'</small></span></div>';}
 function hud(){
  const g=game,w=g.world,n=w.coins.filter(c=>c.got).length;
- const signature=[g.level,n,g.run.deaths,Math.ceil(g.timer),g.run.checkpoint].join('|');
- if(signature!==lastHud){lastHud=signature;$('levelValue').innerHTML=String(g.level).padStart(2,'0')+'<span>/100</span>';text('coinValue',n+'/'+w.coins.length);text('deathValue',g.run.deaths);text('timeValue',Math.ceil(g.timer));$('timeValue').classList.toggle('urgent',g.timer<=15);text('checkpointText',g.run.checkpoint?'NAZORAT '+Math.floor(g.run.checkpoint/4)+' · SAQLANGAN':'KIRISH NUQTASI');}
+ const signature=[I18n.lang,g.level,n,g.progress.lives,g.progress.wallet,Math.ceil(g.timer),g.run.checkpoint].join('|');
+ if(signature!==lastHud){lastHud=signature;$('levelValue').innerHTML=String(g.level).padStart(2,'0')+'<span>/100</span>';text('coinValue',n+'/'+w.coins.length);$('lifeValue').innerHTML=hearts();$('lifeValue').setAttribute('aria-label',T('lives')+' '+g.progress.lives+'/'+Core.MAX_LIVES);text('walletValue',g.progress.wallet);text('timeValue',Math.ceil(g.timer));$('timeValue').classList.toggle('urgent',g.timer<=15);text('checkpointText',g.run.checkpoint?T('checkpointNo',{n:Math.floor(g.run.checkpoint/4)}):T('entry'));}
  const percent=Math.round(Core.clamp(g.player.x/(w.exit.x||1),0,1)*100);$('routeFill').style.width=percent+'%';
 }
 function toast(message){text('toast',message);$('toast').classList.add('visible');toastUntil=performance.now()+2200;}
 function clearInput(){keys.clear();pointers.clear();game.clearInput();document.querySelectorAll('.cb').forEach(el=>el.classList.remove('held'));}
 function syncInput(){game.input.left=keys.has('left')||[...pointers.values()].includes('left');game.input.right=keys.has('right')||[...pointers.values()].includes('right');}
-function panel(markup,type=''){$('panel').className='panel '+type;$('panel').innerHTML=markup;$('ov').hidden=false;$('mapScreen').hidden=true;$('ctrl').inert=true;}
+function panel(markup,type=''){$('panel').className='panel '+type;$('panel').innerHTML=markup;$('ov').hidden=false;$('mapScreen').hidden=true;$('ctrl').inert=true;$('panel').scrollTop=0;}
 function button(parent,label,fn,secondary=false,id=''){const b=document.createElement('button');b.className='obtn'+(secondary?' secondary':'');b.textContent=label;b.onclick=fn;if(id)b.id=id;parent.append(b);return b;}
 function showHome(){
  clearInput();if(game.state!=='menu')game.save();game.state='menu';view='home';$('pauseBtn').disabled=true;
- panel('<div class="hero"><span class="eyebrow">100 ZINA · BITTA CHIQISH</span><h1>HELL<span>RUN</span></h1><p class="subline">HARDCORE</p><p class="description">Shoshilmang. Kuzating. Sakrang.<br>Har bir tanga uchun kurashasiz.</p></div><div class="save-card"><div><small>'+((hadSave&&!saveFailed)?'SAQLANGAN YO‘L':'BIRINCHI QADAM')+'</small><strong>'+String(game.progress.currentLevel).padStart(2,'0')+'-DARAJA</strong></div><em>'+game.progress.completed.length+' / 100<br>yakunlangan</em></div><div class="actions" id="homeActions"></div><p class="hint"><b>O‘lim — qaytadan 1-daraja degani emas.</b><br>Daraja, tangalar va nazorat nuqtasi avtomatik saqlanadi.</p>','home');
- button($('homeActions'),hadSave?'▶ DAVOM ETISH':'▶ BOSHLASH',()=>startGame(),false,'startBtn');
- const row=document.createElement('div');row.className='two-actions';$('homeActions').append(row);button(row,'100 DARAJA',showMap,true);button(row,'QOIDALAR',showHelp,true);
+ panel('<div class="hero"><span class="eyebrow">'+E('journey')+'</span><h1 dir="ltr">HELL<span>RUN</span></h1><p class="subline" dir="ltr">HARDCORE</p><p class="description">'+E('intro')+'</p>'+resources()+'</div><div class="save-card"><div><small>'+E(hadSave&&!saveFailed?'savedRoute':'firstStep')+'</small><strong>'+E('levelNo',{n:String(game.progress.currentLevel).padStart(2,'0')})+'</strong></div><em>'+game.progress.completed.length+' / 100<br>'+E('completed')+'</em></div><div class="actions" id="homeActions"></div><p class="hint"><b>'+E('livesHint',economy)+'</b><br>'+E('saveHint')+'</p>','home');
+ button($('homeActions'),'▶ '+T(hadSave?'continue':'start'),()=>startGame(),false,'startBtn');
+ const row=document.createElement('div');row.className='two-actions';$('homeActions').append(row);button(row,T('levels'),showMap,true,'homeMapBtn');button(row,T('rules'),showHelp,true,'rulesBtn');
+ button($('homeActions'),'◎ '+T('language'),showLanguages,true,'languageMenuBtn');
 }
+function showPlaying(){view='game';$('ov').hidden=true;$('mapScreen').hidden=true;$('ctrl').inert=false;$('pauseBtn').disabled=false;clearInput();particles=[];lt=null;accumulator=0;snapCamera();hud();}
 async function startGame(n=game.progress.currentLevel){
- await Sound.unlock();if(!game.start(n))return false;
- view='game';$('ov').hidden=true;$('mapScreen').hidden=true;$('ctrl').inert=false;$('pauseBtn').disabled=false;clearInput();particles=[];lt=null;accumulator=0;snapCamera();hud();toast(String(n).padStart(2,'0')+' · '+game.world.title);return true;
+ await Sound.unlock();if(!game.start(n))return false;if(game.state==='gameover'){showGameOver();return true;}
+ showPlaying();toast(String(n).padStart(2,'0')+' · '+I18n.route(game.world.layout));return true;
 }
-function pauseGame(){
- if(!game.pause())return false;clearInput();showPause();if(Sound.context)Sound.context.suspend().catch(()=>{});return true;
-}
+function pauseGame(){if(!game.pause())return false;clearInput();showPause();if(Sound.context)Sound.context.suspend().catch(()=>{});return true;}
 function showPause(){
- view='pause';panel('<span class="eyebrow">'+String(game.level).padStart(2,'0')+'-DARAJA · YO‘LINGIZ SAQLANGAN</span><h2>PAUZA</h2><p class="description">'+game.world.coins.filter(c=>c.got).length+' ta tanga olindi. '+game.run.deaths+' marta yiqildingiz.<br>Keyingi sakrash sizni yuqoriga olib chiqadi.</p><div class="actions" id="pauseActions"></div>');
- button($('pauseActions'),'▶ DAVOM ETISH',resumeGame);button($('pauseActions'),'100 DARAJA XARITASI',showMap,true);button($('pauseActions'),'BOSH MENYU',showHome,true);
+ view='pause';panel('<span class="eyebrow">'+E('levelNo',{n:String(game.level).padStart(2,'0')})+' · '+E('progressSaved')+'</span><h2>'+E('pause')+'</h2>'+resources()+'<p class="description">'+E('stats',{coins:game.world.coins.filter(c=>c.got).length,deaths:game.run.deaths})+'<br>'+E('nextTip')+'</p><div class="actions" id="pauseActions"></div>');
+ button($('pauseActions'),'▶ '+T('continue'),resumeGame,false,'resumeBtn');button($('pauseActions'),T('levels'),showMap,true);button($('pauseActions'),T('language'),showLanguages,true);button($('pauseActions'),T('home'),showHome,true);
 }
-async function resumeGame(){await Sound.unlock();if(game.resume()){view='game';$('ov').hidden=true;$('mapScreen').hidden=true;$('ctrl').inert=false;clearInput();lt=null;accumulator=0;}}
-function showHelp(){
- helpReturn=view==='pause'?'pause':'home';view='help';panel('<span class="eyebrow">YASHAB QOLISH QOIDALARI</span><h2>ANIQ SAKRANG.</h2><ul class="rules"><li><strong>Yurish + sakrash:</strong> telefonda ikki tugmani bir vaqtda bosing. Kompyuterda A/D yoki ←/→ va SPACE.</li><li><strong>Barcha tangalar kerak.</strong> Tangalarni yig‘ib, yuqoridagi CHIQISH darvozasiga yeting.</li><li><strong>Yashil bayroq saqlaydi.</strong> Undan oldingi tangalar olingan bo‘lsa, nazorat nuqtasi faollashadi.</li><li><strong>Tuzoqni kuzating.</strong> Lazer yonishidan oldin miltillaydi. Darzli zina ustida turib qolmang.</li><li><strong>Urinishlar cheklanmagan.</strong> O‘lganda tangalaringiz saqlanadi va so‘nggi nazoratdan qaytasiz.</li></ul><div class="actions" id="helpActions"></div>');button($('helpActions'),'TUSHUNARLI',()=>helpReturn==='pause'?showPause():showHome());
+async function resumeGame(){await Sound.unlock();if(game.resume())showPlaying();}
+function showHelp(preserve=false){
+ if(preserve!==true)helpReturn=view==='pause'?'pause':'home';view='help';panel('<span class="eyebrow">'+E('rules')+'</span><h2>'+E('rules')+'</h2><ul class="rules">'+I18n.rules().map(rule=>'<li>'+escapeHTML(rule)+'</li>').join('')+'</ul><div class="actions" id="helpActions"></div>');button($('helpActions'),T('understood'),()=>restoreView(helpReturn));
 }
 function showComplete(){
- view='complete';const won=game.level===100;panel('<span class="eyebrow">'+(won?'100 / 100 · CHO‘QQIGA YETDINGIZ':String(game.level).padStart(2,'0')+'-DARAJA YAKUNLANDI')+'</span><h2>'+(won?'G‘ALABA!':'CHIQISH TOPILDI')+'</h2><p class="description">'+game.world.coins.length+' ta tanga. '+game.run.deaths+' ta o‘lim.<br>'+(won?'Do‘zaxning barcha zinalaridan o‘tdingiz.':'Keyingi zina yanada shafqatsiz.')+'</p><div class="actions" id="completeActions"></div>');
- if(!won)button($('completeActions'),'↑ KEYINGI DARAJA',()=>startGame(game.progress.currentLevel));button($('completeActions'),'100 DARAJA XARITASI',showMap, !won);button($('completeActions'),'BOSH MENYU',showHome,true);
+ view='complete';const won=game.level===100;panel('<span class="eyebrow">'+E('levelNo',{n:String(game.level).padStart(2,'0')})+' · '+E('completed')+'</span><h2>'+E(won?'victory':'exitFound')+'</h2><p class="description">'+E('stats',{coins:game.world.coins.length,deaths:game.run.deaths})+'<br>'+E(won?'allComplete':'nextTip')+'</p><div class="actions" id="completeActions"></div>');
+ if(!won)button($('completeActions'),'↑ '+T('nextLevel'),()=>startGame(game.progress.currentLevel),false,'nextLevelBtn');button($('completeActions'),T('levels'),showMap,!won);button($('completeActions'),T('home'),showHome,true);
 }
-function showMap(){
- if(game.state==='playing')pauseGame();mapReturn=view;view='map';clearInput();$('ov').hidden=true;$('mapScreen').hidden=false;$('ctrl').inert=true;
- const route=$('mapRoute');route.replaceChildren();text('mapSummary',game.progress.completed.length+' ta yakunlangan · '+game.progress.unlocked+' ta ochiq');
+function showGameOver(){
+ view='gameover';$('pauseBtn').disabled=true;
+ panel('<span class="eyebrow">'+E('levelNo',{n:game.level})+' · '+E('progressSaved')+'</span><h2>'+E('noLives')+'</h2>'+resources()+'<p class="description">'+E('reviveText')+'</p><div class="actions" id="lifeActions"></div><p class="hint">'+E('retryNotice',economy)+'</p>','gameover');
+ const buy=button($('lifeActions'),T('buyLife',economy),async()=>{buy.disabled=true;await Sound.unlock();if(game.state!=='gameover')return;if(game.buyLife())showPlaying();else showGameOver();},false,'buyLifeBtn');buy.disabled=game.progress.wallet<Core.LIFE_COST;
+ if(buy.disabled){const note=document.createElement('p');note.className='purchase-note';note.textContent=T('notEnough',{n:Core.LIFE_COST-game.progress.wallet});$('lifeActions').append(note);}
+ button($('lifeActions'),'↻ '+T('retryLevel',economy),async()=>{await Sound.unlock();if(game.retryLevel()){showPlaying();toast(T('levelNo',{n:game.level}));}},true,'retryLevelBtn');
+ button($('lifeActions'),T('home'),showHome,true,'lifeHomeBtn');
+}
+function restoreView(previous){if(previous==='pause')showPause();else if(previous==='complete')showComplete();else if(previous==='gameover')showGameOver();else if(previous==='help')showHelp(true);else if(previous==='map')showMap(true);else showHome();}
+function showLanguages(){
+ if(game.state==='playing')pauseGame();languageReturn=view;view='language';clearInput();
+ panel('<span class="eyebrow">18 · '+E('language')+'</span><h2>'+E('chooseLanguage')+'</h2><div id="languageGrid" class="language-grid"></div><div class="actions" id="languageActions"></div>','languages');
+ for(const language of I18n.locales){const b=button($('languageGrid'),language.name,()=>{I18n.set(language.code);applyLocale();restoreView(languageReturn);},true);b.dataset.locale=language.code;b.dir='auto';b.lang=language.code;b.setAttribute('aria-pressed',String(language.code===I18n.lang));}
+ button($('languageActions'),T('back'),()=>restoreView(languageReturn),false,'languageBackBtn');
+}
+function showMap(preserve=false){
+ if(game.state==='playing')pauseGame();if(preserve!==true)mapReturn=view;view='map';clearInput();$('ov').hidden=true;$('mapScreen').hidden=false;$('ctrl').inert=true;
+ const route=$('mapRoute');route.replaceChildren();text('mapSummary',T('mapSummary',{done:game.progress.completed.length,open:game.progress.unlocked}));
  const points=[];for(let n=1;n<=100;n++){const i=n-1,row=Math.floor(i/5),col=i%5;points.push({x:(row%2?4-col:col)*20+10,y:3210-row*160-col*26});}
  const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 500 3290');svg.setAttribute('preserveAspectRatio','none');svg.setAttribute('aria-hidden','true');
  const path=document.createElementNS(ns,'path');let d='M '+points[0].x*5+' '+points[0].y;for(const p of points.slice(1))d+=' H '+p.x*5+' V '+p.y;path.setAttribute('d',d);path.setAttribute('stroke','#38283e');path.setAttribute('stroke-width','3');path.setAttribute('fill','none');svg.append(path);route.append(svg);
- points.forEach((p,i)=>{const n=i+1,b=document.createElement('button'),done=game.progress.completed.includes(n);b.className='level-node'+(done?' done':'')+(n===game.progress.currentLevel?' current':'');b.dataset.level=n;b.style.left=p.x+'%';b.style.top=p.y+'px';b.disabled=n>game.progress.unlocked;b.textContent=n;b.setAttribute('aria-label',n+'-daraja'+(b.disabled?', qulflangan':done?', yakunlangan':''));if(done){const mark=document.createElement('b');mark.textContent='✓';b.append(mark);}b.onclick=()=>{if(done)delete game.progress.runs[n];startGame(n);};route.append(b);});
+ points.forEach((p,i)=>{const n=i+1,b=document.createElement('button'),done=game.progress.completed.includes(n);b.className='level-node'+(done?' done':'')+(n===game.progress.currentLevel?' current':'');b.dataset.level=n;b.style.left=p.x+'%';b.style.top=p.y+'px';b.disabled=n>game.progress.unlocked;b.textContent=n;b.setAttribute('aria-label',T('levelNo',{n})+', '+T(b.disabled?'locked':done?'completed':'open'));if(done){const mark=document.createElement('b');mark.textContent='✓';b.append(mark);}b.onclick=()=>{if(done&&game.progress.lives>0)delete game.progress.runs[n];startGame(n);};route.append(b);});
  requestAnimationFrame(()=>{$('mapScroll').scrollTop=points[game.progress.currentLevel-1].y-$('mapScroll').clientHeight*.6;});
 }
-function closeMap(){if(mapReturn==='pause')showPause();else if(mapReturn==='complete')showComplete();else showHome();}
-function nativeBack(){if(view==='map'){closeMap();return true;}if(view==='help'){helpReturn==='pause'?showPause():showHome();return true;}if(game.state==='playing'){pauseGame();return true;}return false;}
+function closeMap(){restoreView(mapReturn);}
+function nativeBack(){if(view==='language'){restoreView(languageReturn);return true;}if(view==='map'){closeMap();return true;}if(view==='help'){restoreView(helpReturn);return true;}if(game.state==='playing'){pauseGame();return true;}return false;}
+
 function resize(){const r=$('wrap').getBoundingClientRect();zoom=Core.clamp(Math.min(r.width/840,r.height/470),1,1.65);dpr=Math.min(2,window.devicePixelRatio||1);W=r.width/zoom;H=r.height/zoom;cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.height*dpr);snapCamera();}
 function cameraTarget(){return{x:Core.clamp(game.player.x-W*.33,-70,Math.max(-70,game.world.right-W+35)),y:game.player.y-H*.53};}
 function snapCamera(){const c=cameraTarget();camX=c.x;camY=c.y;}
 function burst(x,y,color,n){for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-.5)*5,vy:-Math.random()*4-1,life:1,size:2+Math.random()*3,color});if(particles.length>180)particles.splice(0,particles.length-180);}
 function simulate(){game.step();if(game.state==='playing'){for(const p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.13;p.life-=.035;}particles=particles.filter(p=>p.life>0);}if(shake>0)shake*=.8;}
-function label(s,x,y,color='#b093a7',size=8){ctx.font='bold '+size+'px monospace';ctx.textAlign='center';ctx.fillStyle=color;ctx.fillText(s,Math.round(x),Math.round(y));}
+function label(s,x,y,color='#b093a7',size=8){ctx.font='bold '+size+'px '+(['ar','hi','ko','zh','ja'].includes(I18n.lang)?'Arial,sans-serif':'monospace');ctx.direction=I18n.lang==='ar'?'rtl':'ltr';ctx.textAlign='center';ctx.fillStyle=color;ctx.fillText(s,Math.round(x),Math.round(y),120);}
 function platform(pl){
  if(pl.x+pl.w<camX-30||pl.x>camX+W+30||pl.y<camY-45||pl.y>camY+H+100)return;
  const x=Math.round(pl.x),y=pl.y;
@@ -83,14 +108,14 @@ function platform(pl){
  ctx.fillStyle='#03030999';ctx.fillRect(x+6,y+9,pl.w,pl.h+8);ctx.fillStyle='#211724';ctx.fillRect(x,y,pl.w,pl.h);ctx.fillStyle=c;ctx.fillRect(x,y,pl.w,4);ctx.fillStyle='#ffffff13';ctx.fillRect(x+2,y+4,pl.w-4,2);
  ctx.strokeStyle='#09070ea0';for(let a=14;a<pl.w;a+=21){ctx.beginPath();ctx.moveTo(x+a,y+6);ctx.lineTo(x+a,y+pl.h);ctx.stroke();}
  if(pl.crumble){ctx.strokeStyle=pl.load?'#ffae71':'#b37655';ctx.beginPath();ctx.moveTo(x+pl.w*.35,y+3);ctx.lineTo(x+pl.w*.45,y+9);ctx.lineTo(x+pl.w*.32,y+13);ctx.moveTo(x+pl.w*.7,y+1);ctx.lineTo(x+pl.w*.6,y+pl.h);ctx.stroke();}
- if(pl.checkpoint&&pl.id){const active=pl.id<=game.run.checkpoint;ctx.fillStyle='#68556f';ctx.fillRect(x+pl.w-18,y-39,2,39);ctx.fillStyle=active?'#77efd2':'#73677f';ctx.beginPath();ctx.moveTo(x+pl.w-16,y-39);ctx.lineTo(x+pl.w+5,y-32);ctx.lineTo(x+pl.w-16,y-24);ctx.fill();label(active?'SAQLANDI':'NAZORAT',x+pl.w/2,y+pl.h+16,active?'#77efd2':'#8f7f9c',7);}
+ if(pl.checkpoint&&pl.id){const active=pl.id<=game.run.checkpoint;ctx.fillStyle='#68556f';ctx.fillRect(x+pl.w-18,y-39,2,39);ctx.fillStyle=active?'#77efd2':'#73677f';ctx.beginPath();ctx.moveTo(x+pl.w-16,y-39);ctx.lineTo(x+pl.w+5,y-32);ctx.lineTo(x+pl.w-16,y-24);ctx.fill();label(T(active?'saved':'checkpoint'),x+pl.w/2,y+pl.h+16,active?'#77efd2':'#8f7f9c',7);}
 }
 function door(d,exit){
  const open=exit&&game.world.coins.every(c=>c.got),c=exit?(open?'#77efd2':'#e9587a'):'#927488';
  ctx.fillStyle='#1c1424';ctx.fillRect(d.x-6,d.y-5,d.w+12,d.h+5);ctx.fillStyle=c;ctx.fillRect(d.x-3,d.y-3,d.w+6,3);ctx.fillRect(d.x-3,d.y,3,d.h);ctx.fillRect(d.x+d.w,d.y,3,d.h);
  const glow=ctx.createLinearGradient(d.x,d.y,d.x+d.w,d.y);glow.addColorStop(0,open?'#77efd255':'#9e27452a');glow.addColorStop(.5,open?'#77efd210':'#090710');glow.addColorStop(1,open?'#77efd255':'#9e27452a');ctx.fillStyle=glow;ctx.fillRect(d.x,d.y,d.w,d.h);
  if(!open&&exit){ctx.fillStyle='#cc8291';ctx.fillRect(d.x+14,d.y+24,9,11);ctx.strokeStyle='#cc8291';ctx.strokeRect(d.x+16,d.y+18,5,8);}else{ctx.fillStyle=c;for(let i=0;i<7;i++)ctx.fillRect(d.x+5+(i*7)%25,d.y+((i*13+game.ticks*.4)%d.h),1,3);}
- label(exit?'CHIQISH':'KIRISH',d.x+d.w/2,d.y-12,c,8);
+ label(T(exit?'exit':'entry'),d.x+d.w/2,d.y-12,c,8);
 }
 function drawPlayer(){
  const p=game.player;if(p.dead)return;const x=Math.round(p.x),y=Math.round(p.y);ctx.globalAlpha=p.inv>0&&Math.floor(game.ticks/4)%2?.6:1;
@@ -121,9 +146,10 @@ const keyActions={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',S
 document.addEventListener('keydown',e=>{const action=keyActions[e.code];if(action&&game.state==='playing'){e.preventDefault();if(action==='jump'){if(!e.repeat)game.jump();}else{keys.add(action);syncInput();}}else if(!e.repeat&&(e.code==='Escape'||e.code==='KeyP')){e.preventDefault();if(view==='map')closeMap();else if(game.state==='playing')pauseGame();else if(view==='pause')resumeGame();}else if(!e.repeat&&e.code==='KeyM')showMap();});
 document.addEventListener('keyup',e=>{const action=keyActions[e.code];if(action){keys.delete(action);syncInput();}});
 ['bL','bR','bJ'].forEach((id,i)=>{const el=$(id),action=['left','right','jump'][i];el.addEventListener('pointerdown',e=>{e.preventDefault();if(game.state!=='playing'||game.player.dead)return;pointers.set(e.pointerId,action);el.setPointerCapture(e.pointerId);el.classList.add('held');if(action==='jump')game.jump();syncInput();Sound.unlock();});const release=e=>{pointers.delete(e.pointerId);if(![...pointers.values()].includes(action))el.classList.remove('held');syncInput();};['pointerup','pointercancel','lostpointercapture'].forEach(name=>el.addEventListener(name,release));el.addEventListener('contextmenu',e=>e.preventDefault());});
-$('soundBtn').onclick=()=>Sound.toggle();$('pauseBtn').onclick=()=>pauseGame();$('mapBtn').onclick=showMap;$('closeMap').onclick=closeMap;
+$('soundBtn').onclick=()=>Sound.toggle();$('pauseBtn').onclick=()=>pauseGame();$('mapBtn').onclick=showMap;$('closeMap').onclick=closeMap;$('langBtn').onclick=showLanguages;
 window.addEventListener('blur',()=>{clearInput();pauseGame();});document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInput();pauseGame();game.save();}});window.addEventListener('pagehide',()=>game.save());
 window.addEventListener('resize',resize);if(window.visualViewport)window.visualViewport.addEventListener('resize',resize);new ResizeObserver(resize).observe($('wrap'));
 resize();
+applyLocale();
 showHome();
 requestAnimationFrame(loop);

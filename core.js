@@ -1,6 +1,6 @@
 'use strict';
 (function(root){
- const MAX_LEVEL=100, STEP=1000/60;
+ const MAX_LEVEL=100, MAX_LIVES=3, LIFE_COST=5, STEP=1000/60;
  const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
  const int=(n,a,b,f=a)=>Number.isFinite(n)?clamp(Math.floor(n),a,b):f;
  function random(seed){let s=seed>>>0;return()=>{s+=0x6D2B79F5;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
@@ -48,15 +48,20 @@
   const last=platforms[platforms.length-1];
   return{level,theme:d.tier,layout:routeIndex,title:route.name,chapter:CHAPTERS[d.tier],d,platforms,coins,spikes,lasers,saws,entry:{x:12,y:-59,w:36,h:59},exit:{x:last.x+last.w-56,y:last.y-60,w:36,h:60},timeLimit:d.steps*3+24,right:last.x+last.w+110,top:last.y-180};
  }
- function freshProgress(){return{version:2,currentLevel:1,unlocked:1,completed:[],totalDeaths:0,runs:{}};}
+ function freshProgress(){return{version:3,currentLevel:1,unlocked:1,completed:[],totalDeaths:0,lives:MAX_LIVES,wallet:0,runs:{}};}
  function normalizeProgress(raw){
-  if(!raw||raw.version!==2)return freshProgress();
+  if(!raw||![2,3].includes(raw.version))return freshProgress();
   const p=freshProgress();p.unlocked=int(raw.unlocked,1,100);p.currentLevel=int(raw.currentLevel,1,p.unlocked);p.totalDeaths=int(raw.totalDeaths,0,1000000);
   p.completed=Array.isArray(raw.completed)?[...new Set(raw.completed.filter(n=>Number.isInteger(n)&&n>=1&&n<=p.unlocked))]:[];
   if(raw.runs&&typeof raw.runs==='object')for(let n=1;n<=p.unlocked;n++){
    const r=raw.runs[n];if(!r||typeof r!=='object')continue;
    p.runs[n]={checkpoint:int(r.checkpoint,0,24),collected:Array.isArray(r.collected)?[...new Set(r.collected.filter(x=>Number.isInteger(x)&&x>=1&&x<=24))]:[],deaths:int(r.deaths,0,1000000),remaining:int(r.remaining,1,1000,80)};
   }
+  if(raw.version===2){
+   // Credit coins from the previous release once. Version 3 stores the spent
+   // wallet explicitly; a reload must never refund a purchased life.
+   for(const [n,run] of Object.entries(p.runs)){const coins=generateLevel(+n).coins;p.wallet+=run.collected.filter(id=>coins.some(c=>c.id===id)).length;}
+  }else{p.lives=int(raw.lives,0,MAX_LIVES,MAX_LIVES);p.wallet=int(raw.wallet,0,999999);}
   return p;
  }
  function rect(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
@@ -79,29 +84,39 @@
    this.jumpBuffer=0;this.coyote=5;this.stepClock=0;this.input.left=false;this.input.right=false;
    for(const p of this.world.platforms){p.load=0;p.broken=0;}
   }
-  start(n=this.progress.currentLevel){if(!Number.isInteger(n)||n<1||n>this.progress.unlocked)return false;this.load(n);this.progress.currentLevel=n;this.state='playing';this.save();this.emit('start');return true;}
+  start(n=this.progress.currentLevel){if(!Number.isInteger(n)||n<1||n>this.progress.unlocked)return false;this.load(n);this.progress.currentLevel=n;this.state=this.progress.lives>0?'playing':'gameover';this.save();this.emit(this.state==='playing'?'start':'gameover');return true;}
   save(){this.run.remaining=Math.ceil(this.timer);this.run.collected=this.world.coins.filter(c=>c.got).map(c=>c.id);this.progress.runs[this.level]=this.run;this.emit('save',this.progress);}
   jump(){if(this.state==='playing'&&!this.player.dead)this.jumpBuffer=7;}
   pause(){if(this.state!=='playing')return false;this.state='paused';this.clearInput();this.save();this.emit('pause');return true;}
-  resume(){if(this.state!=='paused')return false;this.state='playing';this.clearInput();return true;}
+  resume(){if(this.state!=='paused')return false;if(this.progress.lives===0){this.state='gameover';this.emit('gameover');return false;}this.state='playing';this.clearInput();return true;}
   clearInput(){this.input.left=false;this.input.right=false;this.jumpBuffer=0;}
   die(reason='tuzoq'){
    if(this.state!=='playing'||this.player.dead)return;
-   this.player.dead=true;this.player.vx=0;this.deathFrames=38;this.run.deaths++;this.progress.totalDeaths++;this.clearInput();this.save();this.emit('death',reason);
+   this.player.dead=true;this.player.vx=0;this.deathFrames=38;this.run.deaths++;this.progress.totalDeaths++;this.progress.lives=Math.max(0,this.progress.lives-1);this.clearInput();this.save();this.emit('death',reason);
   }
   respawn(){this.resetPlayer();const left=this.world.d.steps-this.run.checkpoint;this.timer=Math.max(this.timer,Math.min(this.world.timeLimit,left*4+24));this.save();this.emit('respawn');}
+  buyLife(){
+   if(this.state!=='gameover'||this.progress.lives!==0||this.progress.wallet<LIFE_COST)return false;
+   this.progress.wallet-=LIFE_COST;this.progress.lives=1;this.state='playing';this.respawn();this.emit('revive');return true;
+  }
+  retryLevel(){
+   if(this.state!=='gameover')return false;
+   this.progress.lives=MAX_LIVES;
+   this.progress.runs[this.level]={checkpoint:0,collected:[],deaths:this.run.deaths,remaining:this.world.timeLimit};
+   this.load(this.level);this.state='playing';this.save();this.emit('start');return true;
+  }
   finish(){
    if(this.state!=='playing'||this.world.coins.some(c=>!c.got))return false;
    this.state='complete';this.clearInput();const p=this.progress;
    if(!p.completed.includes(this.level))p.completed.push(this.level);
-   p.unlocked=Math.max(p.unlocked,Math.min(100,this.level+1));p.currentLevel=Math.min(100,this.level+1);this.save();this.emit(this.level===100?'win':'complete');return true;
+   p.unlocked=Math.max(p.unlocked,Math.min(100,this.level+1));p.currentLevel=Math.min(100,this.level+1);p.lives=MAX_LIVES;this.save();this.emit(this.level===100?'win':'complete');return true;
   }
   laserState(l){const phase=(this.ticks+l.phase)%(l.off+l.on);return{active:phase>=l.off,warning:phase>=l.off-25&&phase<l.off,phase};}
   sawPosition(s){return{x:s.x+Math.sin(this.ticks*s.speed+s.phase)*s.range,y:s.y,r:s.r};}
   step(){
    if(this.state!=='playing')return;
    this.ticks++;const p=this.player,w=this.world,d=w.d;
-   if(p.dead){if(--this.deathFrames<=0)this.respawn();return;}
+   if(p.dead){if(--this.deathFrames<=0){if(this.progress.lives>0)this.respawn();else{this.state='gameover';this.clearInput();this.save();this.emit('gameover');}}return;}
    this.timer=Math.max(0,this.timer-1/60);if(this.timer<=0){this.die('vaqt');return;}
    if(p.inv>0)p.inv--;
    for(const pl of w.platforms)if(pl.broken>0&&--pl.broken===0)pl.load=0;
@@ -123,7 +138,7 @@
      this.run.checkpoint=pl.id;this.timer=Math.max(this.timer,(d.steps-pl.id)*3+20);this.save();this.emit('checkpoint',pl.id);
     }
    }else this.stepClock=0;
-   for(const c of w.coins)if(!c.got&&circleRect(c,p)){c.got=true;this.save();this.emit('coin',c);if(w.coins.every(c=>c.got))this.emit('door');}
+   for(const c of w.coins)if(!c.got&&circleRect(c,p)){c.got=true;this.progress.wallet=Math.min(999999,this.progress.wallet+1);this.save();this.emit('coin',c);if(w.coins.every(c=>c.got))this.emit('door');}
    const hitbox={x:p.x+3,y:p.y+3,w:p.w-6,h:p.h-4};
    if(p.inv<=0){
     for(const s of w.spikes)if(rect(hitbox,{x:s.x+3,y:s.y+3,w:s.w-6,h:s.h-3})){this.die('tikan');return;}
@@ -134,6 +149,6 @@
    if(w.coins.every(c=>c.got)&&rect(p,w.exit))this.finish();
   }
  }
- const api={MAX_LEVEL,STEP,Engine,generateLevel,difficulty,normalizeProgress,freshProgress,CHAPTERS,clamp,rect,circleRect};
+ const api={MAX_LEVEL,MAX_LIVES,LIFE_COST,STEP,Engine,generateLevel,difficulty,normalizeProgress,freshProgress,CHAPTERS,clamp,rect,circleRect};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.HellRunCore=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

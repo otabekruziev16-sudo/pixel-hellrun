@@ -1,4 +1,4 @@
-# HellRun Hardcore 2.1
+# HellRun Hardcore 2.2
 
 An offline 100-level precision platformer for Android and Windows, rebuilt from Pixel HellRun.
 
@@ -8,7 +8,10 @@ An offline 100-level precision platformer for Android and Windows, rebuilt from 
 - Distinct course geometry: steep towers, long jumps, broad terraces, paired steps, narrow ledges, saw galleries, laser gates and crumbling routes. Each chapter rearranges the jump rhythms and trap sequences. Levels 1 and 2 now have visibly different openings, rather than small offsets of the same staircase.
 - Narrow ledges, elevated mandatory coins, moving saws, telegraphed laser gates, collapsing stairs and rising lava from the first level. Later chapters narrow platforms and shorten safe laser windows.
 - Each course has a visible entrance and an exit. Collect every coin and physically reach the exit to advance.
-- Unlimited attempts. Death returns to the last green checkpoint and keeps the current level and collected coins. A checkpoint activates only after all earlier coins are collected, so rising lava cannot strand a required coin.
+- Three lives. Each death consumes one; remaining lives respawn at the last green checkpoint. At zero lives, spend 5 wallet coins for one life and resume at the checkpoint, or explicitly restart the current level with three lives. A free restart resets that level's checkpoint and pickups while preserving the wallet and unlocked campaign levels. Completing a level refills three lives.
+- Each coin adds one to the persistent wallet. Spending it does not remove the level's collected-coin progress or relock the exit. Replaying a restarted level can earn its coins again; simply reloading cannot award the same pickup again.
+- Eighteen complete offline language packs: Uzbek, Russian, English, Arabic, Korean, Italian, German, French, Spanish, Portuguese, Chinese, Japanese, Turkish, Hindi, Indonesian, Dutch, Polish and Swedish. Use the language button in the toolbar, main menu or pause menu. Arabic menus use RTL while movement controls retain their physical directions. The language choice and translated Android exit dialog persist across launches.
+- A checkpoint activates only after all earlier coins are collected, so rising lava cannot strand a required coin.
 - Level, checkpoint, coins and deaths are saved locally. Pause, background, process restart and closing the window preserve saved progress.
 - Offline start, walking, jumping, landing, coin, death, checkpoint, door and victory sounds, with a persistent mute button.
 
@@ -26,9 +29,9 @@ Browser checks: `npx playwright install chromium` then `npm run test:browser`.
 Windows: `npm run build:windows`.
 Android: JDK 17, Android SDK platform 35 and build-tools 35.0.0; set `ANDROID_HOME`, then `bash scripts/build-android.sh`.
 
-The 14 engine tests cover physical stair and coin reachability in all 100 levels, distinct adjacent-level geometry, compatibility with 2.0 campaign saves, deterministic generation, repeated death and save reload, checkpoint safety, exit gating, level-100 completion, pause/timeouts, collapsing stairs, laser hitboxes, invalid saves and refresh-rate consistency. Browser tests cover the actual level-1 exit to level-2 button flow, full viewport layouts, touch cancellation and multitouch, saved progress, audio and the 100-node map. The Android emulator tests portrait/landscape, pause/resume and restarting the process. The Windows runner launches the actual portable EXE.
+The 23 unit tests cover reachability across 100 levels, distinct layouts, save migration, three-life exhaustion, purchase debits, insufficient funds, retry scope, wallet persistence, translation completeness and RTL selection, as well as the original physics and checkpoint checks. Browser tests cover all 18 languages at portrait and landscape phone sizes, language reload, Arabic controls, real purchase/retry buttons, level transitions, saved progress, touch and audio. The Android emulator tests rotation, pause/resume, process restart, language selection and its translated native exit dialog. The Windows runner launches the actual portable EXE.
 
-Version 2.1 keeps the same app identity and save format as 2.0. Install the privately signed release over the previous Hardcore app to keep unlocked levels, checkpoints and coins.
+Version 2.2 keeps the app identity and save location. Existing 2.0/2.1 saves migrate to format 3, retain their levels and checkpoints, start with three lives and receive wallet credit for their saved collected coins once. Install the privately signed release over the previous Hardcore app to retain progress. Reopening a zero-life save does not grant free lives or refund spent coins.
 
 CI APKs use an ephemeral test key. For a consistently signed personal release, re-sign the APK with a private persistent keystore using `apksigner` and retain that keystore privately for future updates. Do not commit signing keys. The Windows executable is unsigned. These are downloadable personal builds, not store publications.
 

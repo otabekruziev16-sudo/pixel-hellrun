@@ -13,6 +13,7 @@ import android.widget.TextView;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import org.json.JSONObject;
 
 public final class MainActivity extends Activity {
  private WebView game;
@@ -74,9 +75,12 @@ public final class MainActivity extends Activity {
  @Override public void onBackPressed() {
   if (game == null) { finish(); return; }
   game.evaluateJavascript("typeof nativeBack==='function' && nativeBack()", value -> {
-   if (!"true".equals(value))
-    new AlertDialog.Builder(this).setTitle("O‘yindan chiqish?")
-     .setPositiveButton("Chiqish", (dialog, which) -> finish()).setNegativeButton("Qolish", null).show();
+   if (!"true".equals(value)) game.evaluateJavascript("typeof I18n!=='undefined' ? I18n.nativeDialog() : null", labels -> {
+    String title="Exit the game?", leave="Exit", stay="Stay";
+    try { JSONObject translated=new JSONObject(labels);title=translated.getString("title");leave=translated.getString("exit");stay=translated.getString("stay"); } catch (Exception ignored) {}
+    new AlertDialog.Builder(this).setTitle(title)
+     .setPositiveButton(leave, (dialog, which) -> finish()).setNegativeButton(stay, null).show();
+   });
   });
  }
  @Override protected void onDestroy() { if (game != null) { game.destroy(); game = null; } super.onDestroy(); }

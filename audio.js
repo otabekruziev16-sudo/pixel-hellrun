@@ -17,7 +17,7 @@ const Sound={
   updateButton(){
     document.getElementById('soundBtn').textContent=this.supported?(this.muted?'∅':'♪'):'—';
     document.getElementById('soundBtn').setAttribute('aria-pressed',String(this.muted));
-    document.getElementById('soundBtn').setAttribute('aria-label',this.muted?'Ovozni yoqish':'Ovozni o‘chirish');
+    document.getElementById('soundBtn').setAttribute('aria-label',I18n.t(this.muted?'soundOn':'soundOff'));
   },
   toggle(){
     this.muted=!this.muted;
@@ -55,7 +55,7 @@ const Sound={
       case 'death':this.tone(330,45,.5,.22,'sawtooth');this.noise(.22,.16);break;
       case 'crumble':this.noise(.18,.12);break;
       case 'checkpoint':case 'complete':[392,494,587,784].forEach((f,i)=>this.tone(f,f,.18,.15,'square',i*.1));break;
-      case 'door':this.tone(392,784,.3,.16);break;
+      case 'door':case 'revive':this.tone(392,784,.3,.16);break;
       case 'win':[523,659,784,1047,784,1047].forEach((f,i)=>this.tone(f,f,.25,.15,'square',i*.15));break;
       case 'pause':this.tone(300,200,.08,.09);break;
     }
