@@ -19,7 +19,7 @@ module.exports=async function checkShop(browser,url,watch,menuFits){
  await page.locator('#pauseBtn').tap();await page.locator('#pauseShopBtn').tap();const frozen=await page.evaluate(()=>game.timer);await page.waitForTimeout(100);assert.equal(await page.evaluate(()=>game.timer),frozen);
  await page.locator('[data-rank="E"]').tap();await page.locator('[data-skin="rookie"]').tap();await page.locator('#skinActionBtn').tap();await page.locator('#confirmSkinBtn').tap();
  assert.deepEqual(await page.evaluate(()=>[game.progress.wallet,game.progress.equippedSkin,game.progress.ownedSkins.length,game.buySkin('rookie')]),[5,'rookie',3,false]);await page.locator('[data-skin="moss"]').tap();assert.equal(await page.locator('#skinActionBtn').isDisabled(),true);
- await page.locator('#shopBackBtn').tap();assert.equal(await page.evaluate(()=>view),'pause');await page.locator('#resumeBtn').tap();
+ await page.locator('#shopBackBtn').tap();assert.equal(await page.evaluate(()=>view),'pause');await page.locator('#resumeBtn').tap();await page.waitForFunction(()=>game.state==='playing');
  await page.evaluate(()=>{for(let n=0;n<3;n++){game.die();for(let i=0;i<39;i++)game.step();}});await page.locator('#buyLifeBtn').tap();await page.waitForFunction(()=>game.state==='playing');assert.deepEqual(await page.evaluate(()=>[game.progress.wallet,game.progress.lives,game.progress.equippedSkin]),[0,1,'rookie']);
  await page.evaluate(()=>showHome());await page.locator('#skinShopBtn').tap();
  const langs=await page.evaluate(()=>I18n.locales.map(l=>l.code));
