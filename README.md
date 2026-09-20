@@ -1,10 +1,11 @@
-# HellRun Hardcore 2.0
+# HellRun Hardcore 2.1
 
 An offline 100-level precision platformer for Android and Windows, rebuilt from Pixel HellRun.
 
 ## This version
 - Full viewport canvas with a camera that adapts to portrait, landscape and window resizing. Controls sit over the game instead of shrinking it into a small central rectangle.
 - 100 deterministic ascending stair courses and a scrollable 100-step level selection map. Completed levels remain unlocked.
+- Distinct course geometry: steep towers, long jumps, broad terraces, paired steps, narrow ledges, saw galleries, laser gates and crumbling routes. Each chapter rearranges the jump rhythms and trap sequences. Levels 1 and 2 now have visibly different openings, rather than small offsets of the same staircase.
 - Narrow ledges, elevated mandatory coins, moving saws, telegraphed laser gates, collapsing stairs and rising lava from the first level. Later chapters narrow platforms and shorten safe laser windows.
 - Each course has a visible entrance and an exit. Collect every coin and physically reach the exit to advance.
 - Unlimited attempts. Death returns to the last green checkpoint and keeps the current level and collected coins. A checkpoint activates only after all earlier coins are collected, so rising lava cannot strand a required coin.
@@ -25,7 +26,9 @@ Browser checks: `npx playwright install chromium` then `npm run test:browser`.
 Windows: `npm run build:windows`.
 Android: JDK 17, Android SDK platform 35 and build-tools 35.0.0; set `ANDROID_HOME`, then `bash scripts/build-android.sh`.
 
-The 12 engine tests cover physical stair and coin reachability in all 100 levels, deterministic generation, repeated death and save reload, checkpoint safety, exit gating, level-100 completion, pause/timeouts, collapsing stairs, laser hitboxes, invalid saves and refresh-rate consistency. Browser tests cover full viewport layouts, touch cancellation and multitouch, saved progress, audio and the 100-node map. The Android emulator tests portrait/landscape, pause/resume and restarting the process. The Windows runner launches the actual portable EXE.
+The 14 engine tests cover physical stair and coin reachability in all 100 levels, distinct adjacent-level geometry, compatibility with 2.0 campaign saves, deterministic generation, repeated death and save reload, checkpoint safety, exit gating, level-100 completion, pause/timeouts, collapsing stairs, laser hitboxes, invalid saves and refresh-rate consistency. Browser tests cover the actual level-1 exit to level-2 button flow, full viewport layouts, touch cancellation and multitouch, saved progress, audio and the 100-node map. The Android emulator tests portrait/landscape, pause/resume and restarting the process. The Windows runner launches the actual portable EXE.
+
+Version 2.1 keeps the same app identity and save format as 2.0. Install the privately signed release over the previous Hardcore app to keep unlocked levels, checkpoints and coins.
 
 CI APKs use an ephemeral test key. For a consistently signed personal release, re-sign the APK with a private persistent keystore using `apksigner` and retain that keystore privately for future updates. Do not commit signing keys. The Windows executable is unsigned. These are downloadable personal builds, not store publications.
 

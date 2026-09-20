@@ -7,11 +7,35 @@ function place(g,pl){Object.assign(g.player,{x:pl.x+pl.w/2-12,y:pl.y-32,vx:0,vy:
 test('all 100 deterministic staircases have distinct entrances, gated exits and harder hazards',()=>{
  for(let n=1;n<=100;n++){
   const w=generateLevel(n);assert.deepEqual(w,generateLevel(n));assert.ok(w.exit.x>w.entry.x+1500);assert.ok(w.exit.y<w.entry.y-400);
-  assert.ok(w.saws.length>=3&&w.lasers.length>=3&&w.spikes.length>=3);
+  assert.ok(w.saws.length>=1&&w.lasers.length>=1&&w.spikes.length>=1);
+  assert.equal(w.saws.length+w.lasers.length+w.spikes.length,w.coins.length);
   assert.ok(w.coins.every(c=>c.y<w.platforms[c.platformId].y-65));
   assert.ok(w.platforms.every((p,i)=>!i||p.y<w.platforms[i-1].y));
  }
  assert.ok(difficulty(100).width<difficulty(1).width);assert.ok(difficulty(100).laserOff<difficulty(1).laserOff);
+});
+test('adjacent levels change the actual opening geometry, not only their number or small random offsets',()=>{
+ const opening=w=>w.platforms.slice(1,7).map((p,i)=>[p.x-w.platforms[i].x-w.platforms[i].w,w.platforms[i].y-p.y,p.w]);
+ const signatures=new Set();
+ for(let n=1;n<=100;n++){
+  const w=generateLevel(n);signatures.add(JSON.stringify(w.platforms.map(p=>[p.x,p.y,p.w,p.crumble])));
+  if(n>1){const previous=opening(generateLevel(n-1)),current=opening(w);const changed=current.filter((jump,i)=>jump.reduce((sum,v,j)=>sum+Math.abs(v-previous[i][j]),0)>=35).length;assert.ok(changed>=3,`similar opening ${n-1} → ${n}`);}
+ }
+ assert.equal(signatures.size,100);
+ const a=generateLevel(1),b=generateLevel(2);
+ assert.ok(b.platforms[1].x-a.platforms[1].x<-35);
+ assert.ok(a.platforms[1].y-b.platforms[1].y>30);
+ assert.notEqual(a.title,b.title);
+});
+test('2.0 campaign saves keep their unlocked level, checkpoint and coins in the new layouts',()=>{
+ for(let n=1;n<=100;n++){
+  const checkpoint=Math.floor((12+Math.floor((n-1)/10))/4)*4;
+  const collected=Array.from({length:checkpoint-1},(_,i)=>i+1).filter(i=>i%4!==0);
+  const p={version:2,currentLevel:n,unlocked:n,completed:[],totalDeaths:11,runs:{[n]:{checkpoint,collected,deaths:11,remaining:50}}};
+  const g=new Engine(p);g.start();
+  assert.equal(g.level,n);assert.equal(g.progress.unlocked,n);assert.equal(g.run.checkpoint,checkpoint);assert.equal(g.player.platform,checkpoint);assert.equal(g.run.deaths,11);
+  assert.deepEqual(g.world.coins.filter(c=>c.got).map(c=>c.id),collected);
+ }
 });
 test('every stair-to-stair jump is physically reachable across all 100 levels',()=>{
  for(let n=1;n<=100;n++){

@@ -6,22 +6,47 @@
  function random(seed){let s=seed>>>0;return()=>{s+=0x6D2B79F5;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
  function difficulty(level){const tier=Math.floor((level-1)/10);return{tier,steps:12+tier,speed:4.15,jump:11.8,gravity:.55,width:72-tier*2,gap:86+tier*2.6,crumble:25-tier,laserOff:104-tier*4,laserOn:68+tier*4,sawSpeed:.029+tier*.003};}
  const CHAPTERS=['QIZIL DARVOZA','CHO‘G‘LI ZINALAR','SUKUT QAL’ASI','ARRALAR YO‘LI','KUL MINORASI','QONLI SOAT','QORA LABIRINT','ZULMAT QO‘RG‘ONI','DO‘ZAX TOMI','SO‘NGGI CHIQISH'];
+ // Each route has its own jump rhythm: gap, rise, landing width. Chapters
+ // rearrange the rhythm and tighten the ledges, instead of copying one stair.
+ const ROUTES=[
+  {name:'QIZIL ZINALAR',extra:0,jumps:[[96,44,76],[108,32,90],[64,74,64],[78,38,100],[112,26,72],[50,82,76]],hazards:['spike','saw','laser','spike','laser','saw'],crumble:[2,4]},
+  {name:'TIK MINORA',extra:2,jumps:[[44,84,62],[54,76,70],[68,68,58],[100,24,108],[52,82,64],[80,52,78]],hazards:['laser','spike','saw','laser','saw','spike'],crumble:[1,4]},
+  {name:'UZUN SAKRASH',extra:1,jumps:[[120,20,90],[112,32,110],[116,24,70],[88,48,112],[118,28,86],[70,68,72]],hazards:['saw','laser','spike','laser','spike','saw'],crumble:[2,5]},
+  {name:'ARRALAR GALEREYASI',extra:2,jumps:[[78,58,124],[108,24,68],[60,78,94],[106,36,116],[58,72,66],[104,30,94]],hazards:['saw','saw','spike','laser','saw','spike'],crumble:[2,4]},
+  {name:'QULAYDIGAN YO‘L',extra:1,jumps:[[64,62,60],[86,48,64],[104,30,62],[60,80,98],[114,24,70],[74,66,60]],hazards:['spike','laser','saw','spike','saw','laser'],crumble:[0,1,2,4,5]},
+  {name:'JUFT ZINALAR',extra:2,jumps:[[104,26,106],[38,86,62],[112,22,100],[46,80,72],[98,36,88],[42,84,64]],hazards:['laser','saw','spike','saw','laser','spike'],crumble:[1,3]},
+  {name:'BALAND SUPALAR',extra:0,jumps:[[78,64,140],[52,76,118],[110,24,144],[72,58,124],[98,38,138],[46,86,110]],hazards:['spike','saw','laser','saw','spike','laser'],crumble:[2,4]},
+  {name:'LAZER DARVOZALARI',extra:1,jumps:[[106,36,88],[72,64,98],[116,20,72],[56,84,92],[100,42,82],[84,56,106]],hazards:['laser','laser','saw','spike','laser','saw'],crumble:[2,5]},
+  {name:'IGNADAY ZINALAR',extra:2,jumps:[[72,68,50],[102,34,54],[52,84,52],[106,28,60],[64,74,48],[94,44,56]],hazards:['saw','spike','laser','spike','saw','laser'],crumble:[1,4]},
+  {name:'ARALASH SINOV',extra:2,jumps:[[116,22,112],[48,86,56],[90,54,132],[106,32,62],[56,78,96],[112,26,52],[68,70,118]],hazards:['laser','spike','saw','saw','laser','spike','laser'],crumble:[1,3,5]}
+ ];
  function generateLevel(level){
   level=int(level,1,100);const d=difficulty(level),rand=random(8171+level*9127);
+  const routeIndex=(level-1)%ROUTES.length,route=ROUTES[routeIndex];d.steps+=route.extra;
   const platforms=[{id:0,x:0,y:0,w:176,h:22,checkpoint:true,crumble:false,load:0,broken:0}],coins=[],spikes=[],lasers=[],saws=[];
+  let activeIndex=0;
   for(let i=1;i<=d.steps+1;i++){
    const prev=platforms[i-1],last=i===d.steps+1,checkpoint=!last&&i%4===0;
-   const pl={id:i,x:Math.round(prev.x+prev.w+d.gap+rand()*18),y:prev.y-(40+Math.floor(rand()*20)),w:last?164:checkpoint?122:d.width-Math.floor(rand()*7),h:last||checkpoint?22:16,checkpoint,crumble:!last&&!checkpoint&&i%4===3,load:0,broken:0};
+   const block=Math.floor((i-1)/4),motif=route.jumps[(i-1+d.tier*2+block*(1+d.tier%3))%route.jumps.length];
+   const rise=clamp(motif[1]+Math.floor(rand()*9)-4,18,88);
+   // Higher jumps allow less horizontal travel. Keep every ledge reachable
+   // with the existing movement physics, including in the last chapter.
+   const gap=Math.round(clamp(motif[0]+d.tier*.8+rand()*10-5,36,Math.min(126,154-rise*.7)));
+   const width=clamp(motif[2]-d.tier*1.5+Math.floor(rand()*9)-4,44,146);
+   const hazardIndex=(activeIndex+d.tier)%route.hazards.length;
+   const pl={id:i,x:prev.x+prev.w+gap,y:prev.y-rise,w:last?164:checkpoint?122:width,h:last||checkpoint?22:16,checkpoint,crumble:!last&&!checkpoint&&route.crumble.includes(hazardIndex),load:0,broken:0};
    platforms.push(pl);
    if(!last&&!checkpoint){
-    coins.push({id:i,platformId:i,x:pl.x+pl.w*.42,y:pl.y-(i%4===2?86:70+rand()*12),r:7,got:false});
-    if(i%4===1)spikes.push({x:pl.x+pl.w-14,y:pl.y-13,w:14,h:13});
-    if(i%4===2)saws.push({x:pl.x+pl.w*.5,y:pl.y-69,r:13+d.tier*.35,range:48,phase:rand()*6.28,speed:d.sawSpeed});
-    if(i%4===3)lasers.push({x:(prev.x+prev.w+pl.x)/2,y:pl.y-140,h:prev.y-pl.y+158,off:d.laserOff,on:d.laserOn,phase:Math.floor(rand()*150)});
+    const hazard=route.hazards[hazardIndex],coinSide=[.27,.5,.73][(i+routeIndex+block)%3];
+    coins.push({id:i,platformId:i,x:pl.x+pl.w*(hazard==='spike'?.3:coinSide),y:pl.y-(70+Math.floor(rand()*29)),r:7,got:false});
+    if(hazard==='spike')spikes.push({x:pl.x+pl.w-14,y:pl.y-13,w:14,h:13});
+    if(hazard==='saw')saws.push({x:pl.x+pl.w*.5,y:pl.y-62-Math.floor(rand()*19),r:13+d.tier*.35,range:36+Math.floor(rand()*29),phase:rand()*6.28,speed:d.sawSpeed*(.9+rand()*.2)});
+    if(hazard==='laser')lasers.push({x:prev.x+prev.w+gap*(.38+rand()*.24),y:pl.y-140,h:rise+158,off:d.laserOff,on:d.laserOn,phase:Math.floor(rand()*(d.laserOff+d.laserOn))});
+    activeIndex++;
    }
   }
   const last=platforms[platforms.length-1];
-  return{level,theme:d.tier,title:CHAPTERS[d.tier],d,platforms,coins,spikes,lasers,saws,entry:{x:12,y:-59,w:36,h:59},exit:{x:last.x+last.w-56,y:last.y-60,w:36,h:60},timeLimit:d.steps*3+24,right:last.x+last.w+110,top:last.y-180};
+  return{level,theme:d.tier,layout:routeIndex,title:route.name,chapter:CHAPTERS[d.tier],d,platforms,coins,spikes,lasers,saws,entry:{x:12,y:-59,w:36,h:59},exit:{x:last.x+last.w-56,y:last.y-60,w:36,h:60},timeLimit:d.steps*3+24,right:last.x+last.w+110,top:last.y-180};
  }
  function freshProgress(){return{version:2,currentLevel:1,unlocked:1,completed:[],totalDeaths:0,runs:{}};}
  function normalizeProgress(raw){
