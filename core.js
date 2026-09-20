@@ -1,5 +1,6 @@
 'use strict';
 (function(root){
+ const Skins=typeof module!=='undefined'&&module.exports?require('./skins.js'):root.HellRunSkins;
  const MAX_LEVEL=100, MAX_LIVES=3, LIFE_COST=5, STEP=1000/60;
  const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
  const int=(n,a,b,f=a)=>Number.isFinite(n)?clamp(Math.floor(n),a,b):f;
@@ -48,9 +49,9 @@
   const last=platforms[platforms.length-1];
   return{level,theme:d.tier,layout:routeIndex,title:route.name,chapter:CHAPTERS[d.tier],d,platforms,coins,spikes,lasers,saws,entry:{x:12,y:-59,w:36,h:59},exit:{x:last.x+last.w-56,y:last.y-60,w:36,h:60},timeLimit:d.steps*3+24,right:last.x+last.w+110,top:last.y-180};
  }
- function freshProgress(){return{version:3,currentLevel:1,unlocked:1,completed:[],totalDeaths:0,lives:MAX_LIVES,wallet:0,runs:{}};}
+ function freshProgress(){return{version:4,currentLevel:1,unlocked:1,completed:[],totalDeaths:0,lives:MAX_LIVES,wallet:0,ownedSkins:['default'],equippedSkin:'default',runs:{}};}
  function normalizeProgress(raw){
-  if(!raw||![2,3].includes(raw.version))return freshProgress();
+  if(!raw||![2,3,4].includes(raw.version))return freshProgress();
   const p=freshProgress();p.unlocked=int(raw.unlocked,1,100);p.currentLevel=int(raw.currentLevel,1,p.unlocked);p.totalDeaths=int(raw.totalDeaths,0,1000000);
   p.completed=Array.isArray(raw.completed)?[...new Set(raw.completed.filter(n=>Number.isInteger(n)&&n>=1&&n<=p.unlocked))]:[];
   if(raw.runs&&typeof raw.runs==='object')for(let n=1;n<=p.unlocked;n++){
@@ -62,6 +63,10 @@
    // wallet explicitly; a reload must never refund a purchased life.
    for(const [n,run] of Object.entries(p.runs)){const coins=generateLevel(+n).coins;p.wallet+=run.collected.filter(id=>coins.some(c=>c.id===id)).length;}
   }else{p.lives=int(raw.lives,0,MAX_LIVES,MAX_LIVES);p.wallet=int(raw.wallet,0,999999);}
+  if(raw.version===4){
+   p.ownedSkins=[...new Set(['default',...(Array.isArray(raw.ownedSkins)?raw.ownedSkins.filter(id=>typeof id==='string'&&Skins.get(id)):[])])];
+   p.equippedSkin=p.ownedSkins.includes(raw.equippedSkin)?raw.equippedSkin:'default';
+  }
   return p;
  }
  function rect(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
@@ -104,6 +109,16 @@
    this.progress.lives=MAX_LIVES;
    this.progress.runs[this.level]={checkpoint:0,collected:[],deaths:this.run.deaths,remaining:this.world.timeLimit};
    this.load(this.level);this.state='playing';this.save();this.emit('start');return true;
+  }
+  buySkin(id){
+   const skin=Skins.get(id),p=this.progress;
+   if(this.state==='playing'||!skin||p.ownedSkins.includes(id)||p.wallet<skin.price)return false;
+   // Price comes from the fixed catalog. Save ownership and debit together.
+   p.wallet-=skin.price;p.ownedSkins.push(id);p.equippedSkin=id;this.save();this.emit('skinBought',skin);return true;
+  }
+  equipSkin(id){
+   if(this.state==='playing'||!Skins.get(id)||!this.progress.ownedSkins.includes(id))return false;
+   this.progress.equippedSkin=id;this.save();this.emit('skinEquipped',Skins.get(id));return true;
   }
   finish(){
    if(this.state!=='playing'||this.world.coins.some(c=>!c.got))return false;

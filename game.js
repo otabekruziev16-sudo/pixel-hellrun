@@ -4,10 +4,13 @@ const SAVE_KEY='hellrun-hardcore-v2',Core=HellRunCore,T=(key,params)=>I18n.t(key
 const escapeHTML=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const E=(key,params)=>escapeHTML(T(key,params)),economy={lives:Core.MAX_LIVES,cost:Core.LIFE_COST};
 let saved=null,hadSave=false,saveFailed=false;
-try{saved=JSON.parse(localStorage.getItem(SAVE_KEY));hadSave=[2,3].includes(saved?.version);Sound.muted=localStorage.getItem('hellrun-muted')==='true';}catch{}
+try{saved=JSON.parse(localStorage.getItem(SAVE_KEY));hadSave=[2,3,4].includes(saved?.version);Sound.muted=localStorage.getItem('hellrun-muted')==='true';}catch{}
 let W=800,H=450,zoom=1,dpr=1,camX=-70,camY=-250,lt=null,accumulator=0,view='home',mapReturn='home',helpReturn='home',languageReturn='home',toastUntil=0,shake=0;
 const keys=new Set(),pointers=new Map();let particles=[],lastHud='';
 const game=new Core.Engine(saved,onGameEvent);
+const Skins=HellRunSkins;
+let shopReturn='home',skinFilter='all',selectedSkin='naruto',shopScroll=0;
+const coinsText=n=>new Intl.NumberFormat(I18n.lang).format(n);
 function persist(progress){try{localStorage.setItem(SAVE_KEY,JSON.stringify(progress));hadSave=true;saveFailed=false;}catch{saveFailed=true;toast(T('saveError'));}}
 function onGameEvent(name,data){
  if(name==='save'){persist(data);return;}
@@ -48,6 +51,7 @@ function showHome(){
  button($('homeActions'),'▶ '+T(hadSave?'continue':'start'),()=>startGame(),false,'startBtn');
  const row=document.createElement('div');row.className='two-actions';$('homeActions').append(row);button(row,T('levels'),showMap,true,'homeMapBtn');button(row,T('rules'),showHelp,true,'rulesBtn');
  button($('homeActions'),'◎ '+T('language'),showLanguages,true,'languageMenuBtn');
+ button($('homeActions'),'◈ '+T('shop'),showSkins,true,'skinShopBtn');
 }
 function showPlaying(){view='game';$('ov').hidden=true;$('mapScreen').hidden=true;$('ctrl').inert=false;$('pauseBtn').disabled=false;clearInput();particles=[];lt=null;accumulator=0;snapCamera();hud();}
 async function startGame(n=game.progress.currentLevel){
@@ -58,6 +62,7 @@ function pauseGame(){if(!game.pause())return false;clearInput();showPause();if(S
 function showPause(){
  view='pause';panel('<span class="eyebrow">'+E('levelNo',{n:String(game.level).padStart(2,'0')})+' · '+E('progressSaved')+'</span><h2>'+E('pause')+'</h2>'+resources()+'<p class="description">'+E('stats',{coins:game.world.coins.filter(c=>c.got).length,deaths:game.run.deaths})+'<br>'+E('nextTip')+'</p><div class="actions" id="pauseActions"></div>');
  button($('pauseActions'),'▶ '+T('continue'),resumeGame,false,'resumeBtn');button($('pauseActions'),T('levels'),showMap,true);button($('pauseActions'),T('language'),showLanguages,true);button($('pauseActions'),T('home'),showHome,true);
+ button($('pauseActions'),'◈ '+T('shop'),showSkins,true,'pauseShopBtn');
 }
 async function resumeGame(){await Sound.unlock();if(game.resume())showPlaying();}
 function showHelp(preserve=false){
@@ -75,7 +80,49 @@ function showGameOver(){
  button($('lifeActions'),'↻ '+T('retryLevel',economy),async()=>{await Sound.unlock();if(game.retryLevel()){showPlaying();toast(T('levelNo',{n:game.level}));}},true,'retryLevelBtn');
  button($('lifeActions'),T('home'),showHome,true,'lifeHomeBtn');
 }
-function restoreView(previous){if(previous==='pause')showPause();else if(previous==='complete')showComplete();else if(previous==='gameover')showGameOver();else if(previous==='help')showHelp(true);else if(previous==='map')showMap(true);else showHome();}
+function restoreView(previous){if(previous==='skins')showSkins(true);else if(previous==='pause')showPause();else if(previous==='complete')showComplete();else if(previous==='gameover')showGameOver();else if(previous==='help')showHelp(true);else if(previous==='map')showMap(true);else showHome();}
+function rankColor(skin){return Skins.RANKS.find(r=>r.id===skin.rank).color;}
+function skinBadge(skin){return '<span class="skin-rank" dir="ltr">'+escapeHTML(skin.rank)+'</span>'+(skin.rank==='SS+'?'<span class="legendary">'+E('legendary')+'</span>':'');}
+function skinCanvas(id,large=false){return '<canvas class="skin-preview'+(large?' large':'')+'" data-preview="'+id+'" width="240" height="170" role="img" aria-label="'+escapeHTML(Skins.get(id).name)+'"></canvas>';}
+function renderSkinPreview(canvas,tick=0){
+ const c=canvas.getContext('2d');c.clearRect(0,0,240,170);c.imageSmoothingEnabled=false;
+ const skin=Skins.get(canvas.dataset.preview);const gradient=c.createRadialGradient(120,95,3,120,95,100);gradient.addColorStop(0,rankColor(skin)+'2c');gradient.addColorStop(1,rankColor(skin)+'00');c.fillStyle=gradient;c.fillRect(0,0,240,170);
+ Skins.draw(c,skin.id,78,20,{scale:3.5,tick,walking:false});
+}
+function showSkins(preserve=false){
+ if(game.state==='playing')pauseGame();
+ if(preserve!==true){shopReturn=view==='skins'?'home':view;skinFilter='all';shopScroll=0;selectedSkin='naruto';}
+ clearInput();view='skins';
+ const owned=game.progress.ownedSkins;
+ const skins=Skins.catalog.filter(s=>skinFilter==='owned'?owned.includes(s.id):skinFilter==='all'||s.rank===skinFilter).sort((a,b)=>a.id==='default'?1:b.id==='default'?-1:Skins.RANKS.findIndex(r=>r.id===a.rank)-Skins.RANKS.findIndex(r=>r.id===b.rank)||a.price-b.price);
+ if(!skins.some(s=>s.id===selectedSkin))selectedSkin=skins[0].id;
+ const skin=Skins.get(selectedSkin),isOwned=owned.includes(skin.id),equipped=skin.id===game.progress.equippedSkin;
+ panel('<header class="shop-header"><div><span class="eyebrow">'+E('collection',{owned:owned.length,total:Skins.catalog.length})+'</span><h2>'+E('shop')+'</h2></div><button id="shopBackBtn" class="obtn secondary">'+E('back')+'</button></header><div class="shop-balance"><span>'+E('wallet')+'</span><strong class="gold">◈ <bdi>'+coinsText(game.progress.wallet)+'</bdi></strong></div><nav id="skinFilters" class="skin-filters" aria-label="'+E('rank',{rank:'E–SS+'})+'"></nav><div class="shop-body"><section class="skin-detail" style="--rank:'+rankColor(skin)+'"><div class="skin-art">'+skinCanvas(skin.id,true)+'</div><div class="skin-detail-copy"><div class="skin-badges">'+skinBadge(skin)+'</div><h3 dir="ltr" id="selectedSkinName">'+escapeHTML(skin.name)+'</h3><div class="skin-price">'+(skin.price?'◈ '+coinsText(skin.price):E('freeSkin'))+'</div><div id="skinAction"></div><p class="skin-note">'+E('cosmeticOnly')+'</p><p class="shop-feedback" id="shopFeedback" role="status" aria-live="polite"></p></div></section><div id="skinGrid" class="skin-grid" aria-label="'+E('allSkins')+'"></div></div><p class="shop-hint">'+E('skinShopHint')+'</p>','shop');
+ $('shopBackBtn').onclick=()=>restoreView(shopReturn);
+ for(const filter of [{id:'all',name:T('allSkins')},{id:'owned',name:T('ownedSkins')},...Skins.RANKS.map(r=>({id:r.id,name:r.id}))]){
+  const b=button($('skinFilters'),filter.name,()=>{skinFilter=filter.id;shopScroll=0;showSkins(true);},true);b.dataset.rank=filter.id;b.setAttribute('aria-pressed',String(skinFilter===filter.id));
+ }
+ for(const s of skins){
+  const b=document.createElement('button');b.type='button';b.className='skin-card';b.dataset.skin=s.id;b.style.setProperty('--rank',rankColor(s));b.setAttribute('aria-pressed',String(s.id===selectedSkin));
+  const state=s.id===game.progress.equippedSkin?T('equippedSkin'):owned.includes(s.id)?T('ownedSkin'):s.price?'◈ '+coinsText(s.price):T('freeSkin');
+  b.innerHTML='<span class="skin-rank" dir="ltr">'+escapeHTML(s.rank)+'</span>'+skinCanvas(s.id)+'<strong dir="ltr">'+escapeHTML(s.name)+'</strong><small>'+escapeHTML(state)+'</small>';
+  b.onclick=()=>{shopScroll=$('skinGrid').scrollTop;selectedSkin=s.id;showSkins(true);};$('skinGrid').append(b);
+ }
+ const action=button($('skinAction'),T(equipped?'equippedSkin':isOwned?'equipSkin':'buySkin'),()=>{
+  if(isOwned){if(game.equipSkin(skin.id)){showSkins(true);$('shopFeedback').textContent=T('skinEquipped',{name:skin.name});}}
+  else showSkinConfirm(skin.id);
+ },false,'skinActionBtn');
+ action.disabled=equipped||(!isOwned&&game.progress.wallet<skin.price);
+ if(!isOwned&&game.progress.wallet<skin.price){const note=document.createElement('p');note.className='purchase-note';note.textContent=T('notEnough',{n:coinsText(skin.price-game.progress.wallet)});$('skinAction').append(note);}
+ document.querySelectorAll('[data-preview]').forEach(c=>renderSkinPreview(c));$('skinGrid').scrollTop=shopScroll;
+}
+function showSkinConfirm(id){
+ const skin=Skins.get(id);if(!skin||game.progress.ownedSkins.includes(id))return;
+ shopScroll=$('skinGrid')?.scrollTop||0;view='skinconfirm';
+ panel('<div class="skin-badges" style="--rank:'+rankColor(skin)+'">'+skinBadge(skin)+'</div><h2 dir="ltr">'+escapeHTML(skin.name)+'</h2>'+skinCanvas(id,true)+'<p class="description">'+E('confirmSkin',{name:skin.name,price:coinsText(skin.price)})+'</p><div class="shop-balance"><span>'+E('wallet')+'</span><strong class="gold">◈ '+coinsText(game.progress.wallet)+'</strong></div><div class="actions" id="confirmSkinActions"></div>','skin-confirm');
+ const buy=button($('confirmSkinActions'),T('buyConfirm'),()=>{buy.disabled=true;const ok=game.buySkin(id);showSkins(true);$('shopFeedback').textContent=ok?T('skinPurchased',{name:skin.name}):T('notEnough',{n:coinsText(Math.max(0,skin.price-game.progress.wallet))});},false,'confirmSkinBtn');
+ buy.disabled=game.progress.wallet<skin.price;button($('confirmSkinActions'),T('cancel'),()=>showSkins(true),true,'cancelSkinBtn');renderSkinPreview(document.querySelector('[data-preview]'));
+}
 function showLanguages(){
  if(game.state==='playing')pauseGame();languageReturn=view;view='language';clearInput();
  panel('<span class="eyebrow">18 · '+E('language')+'</span><h2>'+E('chooseLanguage')+'</h2><div id="languageGrid" class="language-grid"></div><div class="actions" id="languageActions"></div>','languages');
@@ -92,7 +139,7 @@ function showMap(preserve=false){
  requestAnimationFrame(()=>{$('mapScroll').scrollTop=points[game.progress.currentLevel-1].y-$('mapScroll').clientHeight*.6;});
 }
 function closeMap(){restoreView(mapReturn);}
-function nativeBack(){if(view==='language'){restoreView(languageReturn);return true;}if(view==='map'){closeMap();return true;}if(view==='help'){restoreView(helpReturn);return true;}if(game.state==='playing'){pauseGame();return true;}return false;}
+function nativeBack(){if(view==='skinconfirm'){showSkins(true);return true;}if(view==='skins'){restoreView(shopReturn);return true;}if(view==='language'){restoreView(languageReturn);return true;}if(view==='map'){closeMap();return true;}if(view==='help'){restoreView(helpReturn);return true;}if(game.state==='playing'){pauseGame();return true;}return false;}
 
 function resize(){const r=$('wrap').getBoundingClientRect();zoom=Core.clamp(Math.min(r.width/840,r.height/470),1,1.65);dpr=Math.min(2,window.devicePixelRatio||1);W=r.width/zoom;H=r.height/zoom;cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.height*dpr);snapCamera();}
 function cameraTarget(){return{x:Core.clamp(game.player.x-W*.33,-70,Math.max(-70,game.world.right-W+35)),y:game.player.y-H*.53};}
@@ -118,10 +165,8 @@ function door(d,exit){
  label(T(exit?'exit':'entry'),d.x+d.w/2,d.y-12,c,8);
 }
 function drawPlayer(){
- const p=game.player;if(p.dead)return;const x=Math.round(p.x),y=Math.round(p.y);ctx.globalAlpha=p.inv>0&&Math.floor(game.ticks/4)%2?.6:1;
- ctx.fillStyle='#0007';ctx.beginPath();ctx.ellipse(x+12,y+34,14,3,0,0,Math.PI*2);ctx.fill();
- ctx.fillStyle='#80233d';ctx.fillRect(x+3,y+11,18,17);ctx.fillStyle='#f04661';ctx.fillRect(x+4,y,17,12);ctx.fillRect(x+1,y+7,22,5);ctx.fillStyle='#ffd6b6';ctx.fillRect(x+5,y+10,15,9);ctx.fillStyle='#2a1126';ctx.fillRect(x+(p.dir>0?16:6),y+12,3,4);ctx.fillStyle='#ff6577';ctx.fillRect(x+5,y+20,14,6);
- const stride=p.grounded&&Math.abs(p.vx)>.4?Math.sin(game.ticks*.55)*3:0;ctx.fillStyle='#382f43';ctx.fillRect(x+4+stride,y+26,7,6);ctx.fillRect(x+13-stride,y+26,7,6);ctx.fillStyle='#ffd6b6';ctx.fillRect(x+(p.dir>0?20:0),y+20,4,6);ctx.globalAlpha=1;
+ const p=game.player;if(p.dead)return;ctx.globalAlpha=p.inv>0&&Math.floor(game.ticks/4)%2?.6:1;
+ Skins.draw(ctx,game.progress.equippedSkin,p.x,p.y,{dir:p.dir,tick:game.ticks,walking:Math.abs(p.vx)>.4,grounded:p.grounded});ctx.globalAlpha=1;
 }
 function draw(){
  ctx.setTransform(dpr*zoom,0,0,dpr*zoom,0,0);ctx.imageSmoothingEnabled=false;
@@ -141,9 +186,9 @@ function draw(){
  for(const p of particles){ctx.globalAlpha=p.life;ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,p.size,p.size);}ctx.globalAlpha=1;drawPlayer();ctx.restore();hud();
  if(game.player.dead){ctx.fillStyle='#ff18441a';ctx.fillRect(0,0,W,H);}
 }
-function loop(ts){if(lt===null)lt=ts;accumulator+=Math.min(100,Math.max(0,ts-lt));lt=ts;while(accumulator>=Core.STEP){simulate();accumulator-=Core.STEP;}if(ts>toastUntil)$('toast').classList.remove('visible');draw();requestAnimationFrame(loop);}
+function loop(ts){if(lt===null)lt=ts;accumulator+=Math.min(100,Math.max(0,ts-lt));lt=ts;while(accumulator>=Core.STEP){simulate();accumulator-=Core.STEP;}if(ts>toastUntil)$('toast').classList.remove('visible');draw();if(view==='skins'){const preview=document.querySelector('.skin-detail canvas');if(preview)renderSkinPreview(preview,ts/17);}requestAnimationFrame(loop);}
 const keyActions={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',Space:'jump',ArrowUp:'jump',KeyW:'jump'};
-document.addEventListener('keydown',e=>{const action=keyActions[e.code];if(action&&game.state==='playing'){e.preventDefault();if(action==='jump'){if(!e.repeat)game.jump();}else{keys.add(action);syncInput();}}else if(!e.repeat&&(e.code==='Escape'||e.code==='KeyP')){e.preventDefault();if(view==='map')closeMap();else if(game.state==='playing')pauseGame();else if(view==='pause')resumeGame();}else if(!e.repeat&&e.code==='KeyM')showMap();});
+document.addEventListener('keydown',e=>{const action=keyActions[e.code];if(action&&game.state==='playing'){e.preventDefault();if(action==='jump'){if(!e.repeat)game.jump();}else{keys.add(action);syncInput();}}else if(!e.repeat&&(e.code==='Escape'||e.code==='KeyP')){e.preventDefault();if(view==='pause')resumeGame();else nativeBack();}else if(!e.repeat&&e.code==='KeyM'&&['home','game','pause'].includes(view))showMap();});
 document.addEventListener('keyup',e=>{const action=keyActions[e.code];if(action){keys.delete(action);syncInput();}});
 ['bL','bR','bJ'].forEach((id,i)=>{const el=$(id),action=['left','right','jump'][i];el.addEventListener('pointerdown',e=>{e.preventDefault();if(game.state!=='playing'||game.player.dead)return;pointers.set(e.pointerId,action);el.setPointerCapture(e.pointerId);el.classList.add('held');if(action==='jump')game.jump();syncInput();Sound.unlock();});const release=e=>{pointers.delete(e.pointerId);if(![...pointers.values()].includes(action))el.classList.remove('held');syncInput();};['pointerup','pointercancel','lostpointercapture'].forEach(name=>el.addEventListener(name,release));el.addEventListener('contextmenu',e=>e.preventDefault());});
 $('soundBtn').onclick=()=>Sound.toggle();$('pauseBtn').onclick=()=>pauseGame();$('mapBtn').onclick=showMap;$('closeMap').onclick=closeMap;$('langBtn').onclick=showLanguages;

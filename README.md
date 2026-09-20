@@ -1,8 +1,12 @@
-# HellRun Hardcore 2.2
+# HellRun Hardcore 2.3
 
 An offline 100-level precision platformer for Android and Windows, rebuilt from Pixel HellRun.
 
 ## This version
+- A coin-funded skin shop in the main and pause menus, with previews, rank filters, an owned collection, explicit purchase confirmation and free equipment changes. There are 40 paid skins plus the original free HellRun look. Every skin uses the same movement, collision box and lives; only the appearance changes.
+- SS+ legendary skins cost 100,000 coins each: Naruto, Madara, Sasuke, Minato, Gojo, Sukuna, Luffy, Zoro, Ichigo, Aizen, Kakashi and Jiraya. Names remain unchanged in every language. Each has a distinct pixel silhouette, outfit, hair, accessories and a decorative aura.
+- Four additional skins per rank: SS 80,000–95,000; S 60,000–75,000; A 40,000–55,000; B 20,000–35,000; C 10,000–15,000; D 3,000–8,000; E 500–2,000 coins. These are long-term collection prices; coin earnings and the 5-coin extra life remain unchanged.
+- Skin ownership and equipment are saved atomically with wallet spending. Duplicate purchases and unowned equipment are rejected. The shop, including purchase confirmation and insufficient-balance messages, supports all 18 languages offline.
 - Full viewport canvas with a camera that adapts to portrait, landscape and window resizing. Controls sit over the game instead of shrinking it into a small central rectangle.
 - 100 deterministic ascending stair courses and a scrollable 100-step level selection map. Completed levels remain unlocked.
 - Distinct course geometry: steep towers, long jumps, broad terraces, paired steps, narrow ledges, saw galleries, laser gates and crumbling routes. Each chapter rearranges the jump rhythms and trap sequences. Levels 1 and 2 now have visibly different openings, rather than small offsets of the same staircase.
@@ -29,9 +33,9 @@ Browser checks: `npx playwright install chromium` then `npm run test:browser`.
 Windows: `npm run build:windows`.
 Android: JDK 17, Android SDK platform 35 and build-tools 35.0.0; set `ANDROID_HOME`, then `bash scripts/build-android.sh`.
 
-The 23 unit tests cover reachability across 100 levels, distinct layouts, save migration, three-life exhaustion, purchase debits, insufficient funds, retry scope, wallet persistence, translation completeness and RTL selection, as well as the original physics and checkpoint checks. Browser tests cover all 18 languages at portrait and landscape phone sizes, language reload, Arabic controls, real purchase/retry buttons, level transitions, saved progress, touch and audio. The Android emulator tests rotation, pause/resume, process restart, language selection and its translated native exit dialog. The Windows runner launches the actual portable EXE.
+The 29 unit tests cover reachability across 100 levels, distinct layouts, save migration, three-life exhaustion, purchase debits, insufficient funds, retry scope, wallet persistence, translation completeness and RTL selection, skin prices, exact legendary names, inventory, purchase idempotence and cosmetic-only physics, as well as the original physics and checkpoint checks. Browser tests cover all 18 languages at portrait and landscape phone sizes, language reload, Arabic controls, real purchase/retry buttons, level transitions, saved progress, touch and audio. Shop browser checks also verify every distinct sprite, real purchase/cancel/equip actions, shared life-wallet spending, inventory reload and all 18 shop layouts on phones. The Android emulator tests the shop and native Back, rotation, pause/resume, process restart, language selection and its translated native exit dialog. The Windows runner launches the actual portable EXE and purchases a skin through its UI.
 
-Version 2.2 keeps the app identity and save location. Existing 2.0/2.1 saves migrate to format 3, retain their levels and checkpoints, start with three lives and receive wallet credit for their saved collected coins once. Install the privately signed release over the previous Hardcore app to retain progress. Reopening a zero-life save does not grant free lives or refund spent coins.
+Version 2.3 keeps the app identity and save location. Saves migrate to format 4 without losing levels, checkpoints, coins or lives. The original skin is always owned; new purchases are persistent. Earlier 2.0/2.1 saves receive the existing one-time wallet migration, while 2.2 wallets and lives retain their exact balance. Install the privately signed release over the previous Hardcore app to retain progress. Reopening a zero-life save does not grant free lives or refund spent coins.
 
 CI APKs use an ephemeral test key. For a consistently signed personal release, re-sign the APK with a private persistent keystore using `apksigner` and retain that keystore privately for future updates. Do not commit signing keys. The Windows executable is unsigned. These are downloadable personal builds, not store publications.
 

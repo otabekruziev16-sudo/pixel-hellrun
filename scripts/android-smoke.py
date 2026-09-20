@@ -70,7 +70,11 @@ try:
     launch()
     start = wait_for(["BOSHLASH"], "Start button did not render in the Android WebView")
     screenshot("android-portrait-menu.png", False)
-    tap(start)
+    tap(wait_for(["SKINLAR DO‘KONI"], "Skin shop button missing"))
+    wait_for(["Naruto"], "Legendary skin preview missing")
+    screenshot("android-skin-shop.png", False)
+    adb("shell", "input", "keyevent", "4")
+    tap(wait_for(["BOSHLASH"], "Android Back did not return from shop"))
     time.sleep(1)
     screenshot("android-portrait-game.png", False)
     pause = wait_for(["PAUZA", "Pauza"], "Pause control missing after starting")
@@ -103,7 +107,7 @@ try:
     wait_for(["ПРОДОЛЖИТЬ"], "Language preference lost on process restart")
     logs = adb("logcat", "-d", "-b", "crash").decode("utf-8", "replace")
     assert ("Process: " + APP) not in logs, logs
-    (OUT / "android-smoke.txt").write_text("PASS: install, portrait and landscape, start, pause, background/resume, saved progress, language menu, translated native exit dialog, locale after process restart, no Java crash.\n")
+    (OUT / "android-smoke.txt").write_text("PASS: install, portrait and landscape, start, pause, background/resume, saved progress, skin shop and native Back, language menu, translated native exit dialog, locale after process restart, no Java crash.\n")
     print("Android emulator smoke check passed.")
 finally:
     (OUT / "android-display.txt").write_bytes(adb("shell", "dumpsys", "window", "displays"))

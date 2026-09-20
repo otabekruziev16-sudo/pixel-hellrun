@@ -118,7 +118,7 @@ test('insufficient funds cannot buy life; free retry resets only this level and 
 });
 test('old saves receive their collected coins once and spent wallets stay empty after upgrade',()=>{
  const old={version:2,currentLevel:7,unlocked:7,totalDeaths:9,completed:[1],runs:{1:{checkpoint:4,collected:[1,2,3],deaths:3,remaining:50},7:{checkpoint:4,collected:[1,2,3,5,6],deaths:6,remaining:40}}};
- const g=new Engine(old);assert.equal(g.progress.version,3);assert.equal(g.progress.wallet,8);assert.equal(g.progress.lives,3);assert.equal(g.progress.currentLevel,7);assert.deepEqual(g.progress.completed,[1]);
+ const g=new Engine(old);assert.equal(g.progress.version,4);assert.equal(g.progress.wallet,8);assert.equal(g.progress.lives,3);assert.equal(g.progress.currentLevel,7);assert.deepEqual(g.progress.completed,[1]);
  g.progress.wallet=0;g.progress.lives=0;const restored=new Engine(JSON.parse(JSON.stringify(g.progress)));assert.equal(restored.progress.wallet,0);assert.equal(restored.progress.lives,0);assert.equal(restored.run.checkpoint,4);
 });
 test('completing a level refills three lives without charging the wallet or changing collected coins',()=>{
