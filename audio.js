@@ -1,12 +1,12 @@
 const Sound={
-  context:null,master:null,noiseBuffer:null,muted:false,supported:true,
+  context:null,master:null,noiseBuffer:null,muted:false,supported:true,volume:.8,
   async unlock(){
     try{
       if(!this.context){
         const AC=window.AudioContext||window.webkitAudioContext;
         if(!AC){this.supported=false;this.updateButton();return;}
         this.context=new AC();this.master=this.context.createGain();
-        this.master.gain.value=this.muted?0:0.42;this.master.connect(this.context.destination);
+        this.master.gain.value=this.muted?0:0.42*this.volume;this.master.connect(this.context.destination);
         this.noiseBuffer=this.context.createBuffer(1,this.context.sampleRate*.18,this.context.sampleRate);
         const data=this.noiseBuffer.getChannelData(0);
         for(let i=0;i<data.length;i++)data[i]=(Math.random()*2-1)*(1-i/data.length);
@@ -22,9 +22,10 @@ const Sound={
   toggle(){
     this.muted=!this.muted;
     try{localStorage.setItem('hellrun-muted',String(this.muted));}catch{}
-    if(this.master)this.master.gain.setTargetAtTime(this.muted?0:.42,this.context.currentTime,.02);
+    if(this.master)this.master.gain.setTargetAtTime(this.muted?0:.42*this.volume,this.context.currentTime,.02);
     this.updateButton();this.unlock();
   },
+  setVolume(value){this.volume=Math.max(0,Math.min(1,value));if(this.master)this.master.gain.setTargetAtTime(this.muted?0:.42*this.volume,this.context.currentTime,.02);},
   tone(freq,end,duration,volume=.16,type='triangle',delay=0){
     const ac=this.context;if(!ac||ac.state!=='running'||this.muted)return;
     const start=ac.currentTime+delay,o=ac.createOscillator(),g=ac.createGain();
@@ -50,6 +51,7 @@ const Sound={
       case 'start':[196,261.63,329.63,392].forEach((f,i)=>this.tone(f,f,.16,.14,'square',i*.11));break;
       case 'step':this.noise(.09,.055);this.tone(100,65,.055,.09);break;
       case 'jump':this.tone(190,560,.16,.13,'square');break;
+      case 'dash':this.noise(.08,.09);this.tone(420,110,.12,.08,'sawtooth');break;
       case 'land':this.noise(.11,.075);break;
       case 'coin':this.tone(880,1320,.12,.13,'square');this.tone(1320,1760,.12,.1,'triangle',.08);break;
       case 'death':this.tone(330,45,.5,.22,'sawtooth');this.noise(.22,.16);break;

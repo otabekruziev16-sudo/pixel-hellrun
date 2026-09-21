@@ -15,19 +15,20 @@
   catalog.push(Object.freeze({id,name,rank,price,hair,coat,accent,feature,skin:'#f0ba94',pants:'#222332',...extra}));
  }
  add('default','HellRun','E',0,'#f04661','#80233d','#ff6577','original');
- // Names are display identities, never translated or changed by equipment.
- add('naruto','Naruto','SS+',100000,'#ffd44e','#f98422','#202738','naruto',{pants:'#e87825',aura:'#ffb23b'});
- add('madara','Madara','SS+',100000,'#171624','#9b283d','#d5515c','madara',{cape:'#251b2b',aura:'#815ce6'});
- add('sasuke','Sasuke','SS+',100000,'#1b2033','#d6dbea','#9674d5','sasuke',{weapon:'sword',aura:'#9682ff'});
- add('minato','Minato','SS+',100000,'#f6d451','#456678','#ff6153','minato',{cape:'#f0e6d6',aura:'#ffde6f'});
- add('gojo','Gojo','SS+',100000,'#eef3ff','#26243f','#86ddff','gojo',{aura:'#91c8ff'});
- add('sukuna','Sukuna','SS+',100000,'#ec8793','#eee8df','#b82945','sukuna',{aura:'#f45872'});
- add('luffy','Luffy','SS+',100000,'#252030','#d83c46','#f5cb66','luffy',{pants:'#347fa8',aura:'#edbc67'});
- add('zoro','Zoro','SS+',100000,'#70b96a','#287955','#b54850','zoro',{weapon:'triple',aura:'#7be7af'});
- add('ichigo','Ichigo','SS+',100000,'#f59131','#242331','#e4e8ee','ichigo',{weapon:'greatsword',aura:'#e9a746'});
- add('aizen','Aizen','SS+',100000,'#79513d','#eee9e6','#292438','aizen',{cape:'#eee9e6',aura:'#c7b4ff'});
- add('kakashi','Kakashi','SS+',100000,'#bfcbd8','#637b62','#293346','kakashi',{aura:'#9ed4ff'});
- add('jiraya','Jiraya','SS+',100000,'#eee9e7','#a73840','#68836a','jiraya',{cape:'#b44649',aura:'#f5a276'});
+ // Display names changed in 2.4; stable IDs preserve existing purchases.
+ // Renaming does not grant rights to a character likeness.
+ add('naruto','Kael','SS+',100000,'#ffd44e','#f98422','#202738','naruto',{pants:'#e87825',aura:'#ffb23b'});
+ add('madara','Orox','SS+',100000,'#171624','#9b283d','#d5515c','madara',{cape:'#251b2b',aura:'#815ce6'});
+ add('sasuke','Veyr','SS+',100000,'#1b2033','#d6dbea','#9674d5','sasuke',{weapon:'sword',aura:'#9682ff'});
+ add('minato','Solen','SS+',100000,'#f6d451','#456678','#ff6153','minato',{cape:'#f0e6d6',aura:'#ffde6f'});
+ add('gojo','Vaelis','SS+',100000,'#eef3ff','#26243f','#86ddff','gojo',{aura:'#91c8ff'});
+ add('sukuna','Kargen','SS+',100000,'#ec8793','#eee8df','#b82945','sukuna',{aura:'#f45872'});
+ add('luffy','Ruko','SS+',100000,'#252030','#d83c46','#f5cb66','luffy',{pants:'#347fa8',aura:'#edbc67'});
+ add('zoro','Verdak','SS+',100000,'#70b96a','#287955','#b54850','zoro',{weapon:'triple',aura:'#7be7af'});
+ add('ichigo','Ignar','SS+',100000,'#f59131','#242331','#e4e8ee','ichigo',{weapon:'greatsword',aura:'#e9a746'});
+ add('aizen','Aevon','SS+',100000,'#79513d','#eee9e6','#292438','aizen',{cape:'#eee9e6',aura:'#c7b4ff'});
+ add('kakashi','Kairo','SS+',100000,'#bfcbd8','#637b62','#293346','kakashi',{aura:'#9ed4ff'});
+ add('jiraya','Joren','SS+',100000,'#eee9e7','#a73840','#68836a','jiraya',{cape:'#b44649',aura:'#f5a276'});
  add('eclipse','Eclipse','SS',80000,'#e3d3ff','#312346','#b78ef4','mage',{cape:'#211730',aura:'#bd89ff'});
  add('phoenix','Phoenix','SS',85000,'#ffb854','#993340','#ffb548','phoenix',{cape:'#ce492e',aura:'#ff9662'});
  add('stormlord','Stormlord','SS',90000,'#c9efff','#334b76','#81d6f5','armor',{cape:'#253450',weapon:'spear',aura:'#90dfff'});
@@ -62,6 +63,11 @@
  function draw(ctx,id,x,y,pose={}){
   const s=get(id)||byId.default,t=pose.tick||0,stride=pose.walking&&pose.grounded!==false?Math.round(Math.sin(t*.55)*3):0;
   ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.scale(pose.scale||1,pose.scale||1);
+  // Animate the sprite independently of its fixed 24×32 collision box.
+  const squash=pose.landing?1-Math.min(pose.landing,7)*.012:pose.grounded===false?1.035:1;
+  ctx.translate(12,32);ctx.scale(1/squash,squash);ctx.translate(-12,-32);
+  if(pose.walking&&pose.grounded)ctx.translate(0,-Math.abs(stride)*.35);
+  else if(pose.grounded!==false)ctx.translate(0,Math.sin(t*.055)*.4);
   if(pose.dir===-1){ctx.translate(24,0);ctx.scale(-1,1);}
   const r=(x,y,w,h,c)=>{ctx.fillStyle=c;ctx.fillRect(x,y,w,h);};
   const poly=(points,c)=>{ctx.fillStyle=c;ctx.beginPath();points.forEach(([a,b],i)=>i?ctx.lineTo(a,b):ctx.moveTo(a,b));ctx.closePath();ctx.fill();};

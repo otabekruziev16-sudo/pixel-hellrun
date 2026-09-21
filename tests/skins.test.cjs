@@ -2,9 +2,9 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const Skins=require('../skins.js'),{Engine,freshProgress,normalizeProgress}=require('../core.js');
 const clone=x=>JSON.parse(JSON.stringify(x));
-test('catalog has 40 paid skins, the exact requested legendary names and eight price ranks',()=>{
+test('catalog has 40 paid skins, renamed legendary displays with stable ownership IDs and eight price ranks',()=>{
  assert.equal(Skins.catalog.length,41);assert.equal(new Set(Skins.catalog.map(s=>s.id)).size,41);
- assert.deepEqual(Skins.catalog.filter(s=>s.rank==='SS+').map(s=>s.name),['Naruto','Madara','Sasuke','Minato','Gojo','Sukuna','Luffy','Zoro','Ichigo','Aizen','Kakashi','Jiraya']);
+ assert.deepEqual(Skins.catalog.filter(s=>s.rank==='SS+').map(s=>s.name),['Kael','Orox','Veyr','Solen','Vaelis','Kargen','Ruko','Verdak','Ignar','Aevon','Kairo','Joren']);
  assert.deepEqual(Skins.RANKS.map(r=>[r.id,r.min,r.max]),[['SS+',100000,100000],['SS',80000,95000],['S',60000,75000],['A',40000,55000],['B',20000,35000],['C',10000,15000],['D',3000,8000],['E',500,2000]]);
  for(const rank of Skins.RANKS){const items=Skins.catalog.filter(s=>s.rank===rank.id&&s.price>0);assert.ok(items.length>=4);for(const s of items)assert.ok(Number.isInteger(s.price)&&s.price>=rank.min&&s.price<=rank.max);}
  assert.equal(Skins.get('default').price,0);assert.equal(Skins.get('constructor'),null);assert.equal(Skins.get('__proto__'),null);

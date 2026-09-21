@@ -11,11 +11,11 @@
 <body>
 <main id="wrap" data-i18n-aria="game" aria-label="HellRun o‘yini">
  <canvas id="c" data-i18n-aria="game" aria-label="HellRun o‘yini"></canvas>
- <header id="toolbar"><div class="brand"><b>HELL<span>RUN</span></b><small>HARDCORE · 2.3</small></div><div class="toolbar-actions"><button id="mapBtn" class="tool" data-i18n-aria="levels" aria-label="100 DARAJA">▥<span data-i18n="map">XARITA</span></button><button id="langBtn" class="tool language-code" data-i18n-aria="language" aria-label="TIL">UZ</button><button id="soundBtn" class="tool" aria-pressed="false">♪</button><button id="pauseBtn" class="tool" data-i18n-aria="pause" aria-label="PAUZA" disabled>Ⅱ</button></div></header>
+ <header id="toolbar"><div class="brand"><b>HELL<span>RUN</span></b><small>HARDCORE · 2.4</small></div><div class="toolbar-actions"><button id="mapBtn" class="tool" data-i18n-aria="levels" aria-label="100 DARAJA">▥<span data-i18n="map">XARITA</span></button><button id="langBtn" class="tool language-code" data-i18n-aria="language" aria-label="TIL">UZ</button><button id="soundBtn" class="tool" aria-pressed="false">♪</button><button id="pauseBtn" class="tool" data-i18n-aria="pause" aria-label="PAUZA" disabled>Ⅱ</button></div></header>
  <section id="hud" data-i18n-aria="game"><div><small data-i18n="level">DARAJA</small><strong id="levelValue">01<span>/100</span></strong></div><div><small data-i18n="coins">TANGALAR</small><strong id="coinValue" class="gold">0/9</strong></div><div><small data-i18n="lives">JON</small><strong id="lifeValue" class="hearts" role="img"></strong></div><div><small data-i18n="wallet">HAMYON</small><strong id="walletValue" class="gold">0</strong></div><div><small data-i18n="time">VAQT</small><strong id="timeValue">60</strong></div></section>
  <div id="routeProgress"><i id="routeFill"></i></div><div id="toast" role="status" aria-live="polite"></div>
- <div id="checkpointBadge"><i></i><span id="checkpointText">KIRISH NUQTASI</span></div>
- <div id="ctrl"><div class="movement"><button class="cb" id="bL" data-i18n-aria="left" aria-label="Chapga yurish">◀</button><button class="cb" id="bR" data-i18n-aria="right" aria-label="O‘ngga yurish">▶</button></div><span class="keyboard-hint">A / D · SPACE<br><small>P — <span data-i18n="pause">PAUZA</span></small></span><button class="cb jump" id="bJ" data-i18n-aria="jump" aria-label="SAKRA">↑<span data-i18n="jump">SAKRA</span></button></div>
+ <div id="chapterName" class="chapter-name"></div><div id="checkpointBadge"><i></i><span id="checkpointText">KIRISH NUQTASI</span></div>
+ <div id="ctrl"><div class="movement"><button class="cb" id="bL" data-i18n-aria="left" aria-label="Chapga yurish">◀</button><button class="cb" id="bR" data-i18n-aria="right" aria-label="O‘ngga yurish">▶</button></div><span class="keyboard-hint" id="keyboardHint"></span><div class="abilities"><button class="cb dash" id="bDash" data-i18n-aria="dash">»<span data-i18n="dash"></span></button><button class="cb jump" id="bJ" data-i18n-aria="jump" aria-label="SAKRA">↑<span data-i18n="jump">SAKRA</span></button></div></div>
  <div id="ov" class="screen" role="dialog" aria-modal="true" data-i18n-aria="menu" aria-label="O‘yin menyusi"><div id="panel" class="panel"></div></div>
  <section id="mapScreen" class="screen" hidden data-i18n-aria="levels" aria-label="100 DARAJA"><div class="map-shell"><header class="map-header"><div><span class="eyebrow" data-i18n="journey">100 ZINA · BITTA CHIQISH</span><h2 data-i18n="levels">100 DARAJA</h2><p id="mapSummary"></p></div><button id="closeMap" class="tool" data-i18n-aria="close" aria-label="Yopish">×</button></header><div class="map-legend"><span><i class="done"></i><b data-i18n="completed">yakunlangan</b></span><span><i class="open"></i><b data-i18n="open">ochiq</b></span><span><i></i><b data-i18n="locked">qulflangan</b></span></div><div id="mapScroll"><div id="mapRoute"></div></div><footer class="map-footer" data-i18n="mapFooter">Har bir chiqish — keyingi zinaga yo‘l.</footer></div></section>
 </main>
@@ -23,6 +23,9 @@
 <script src="core.js"></script>
 <script src="i18n.js"></script>
 <script src="audio.js"></script>
+<script src="controls.js"></script>
+<script src="store.js"></script>
+<script src="scenery.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

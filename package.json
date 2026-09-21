@@ -1,13 +1,13 @@
 {
   "name": "pixel-hellrun",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "private": true,
   "description": "Pixel HellRun — offline platformer for Android and Windows",
   "author": "Otabek Ruziev",
   "main": "desktop/main.cjs",
   "scripts": {
     "build:web": "node scripts/bundle.cjs",
-    "test": "node --test tests/physics.test.cjs tests/i18n.test.cjs tests/skins.test.cjs",
+    "test": "node --test tests/physics.test.cjs tests/i18n.test.cjs tests/skins.test.cjs tests/upgrade.test.cjs",
     "test:browser": "node tests/browser.cjs",
     "build:windows": "node scripts/bundle.cjs && electron-builder --win portable --x64 --publish never"
   },

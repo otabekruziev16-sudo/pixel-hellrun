@@ -46,8 +46,21 @@
     activeIndex++;
    }
   }
-  const last=platforms[platforms.length-1];
-  return{level,theme:d.tier,layout:routeIndex,title:route.name,chapter:CHAPTERS[d.tier],d,platforms,coins,spikes,lasers,saws,entry:{x:12,y:-59,w:36,h:59},exit:{x:last.x+last.w-56,y:last.y-60,w:36,h:60},timeLimit:d.steps*3+24,right:last.x+last.w+110,top:last.y-180};
+  const last=platforms[platforms.length-1],lifts=[];
+  for(const p of platforms){
+   p.surface='stone';p.belt=0;
+   if(p.id&&p!==last&&!p.checkpoint&&!p.crumble){
+    if([1,6,9].includes(d.tier)&&p.id%3!==0)p.surface='ice';
+    if([2,5,8,9].includes(d.tier)&&p.id%3===0){p.surface='belt';p.belt=p.id%2?.55:-.55;}
+   }
+   // Optional ferries travel below the original route. Main ledge IDs and
+   // required coins stay stable, preserving every earlier campaign save.
+   if(d.tier>=3&&p.id>0&&p.id%4===2){
+    const prev=platforms[p.id-1],gap=p.x-prev.x-prev.w;
+    if(gap>=65)lifts.push({id:-2-lifts.length,x:prev.x+prev.w+8,y:prev.y+25,w:48,h:10,baseX:prev.x+prev.w+8,range:Math.max(8,gap-50),phase:p.id*.7,speed:.025+d.tier*.001,surface:'lift',checkpoint:false});
+   }
+  }
+  return{level,theme:d.tier,layout:routeIndex,title:route.name,chapter:CHAPTERS[d.tier],d,platforms,lifts,coins,spikes,lasers,saws,entry:{x:12,y:-59,w:36,h:59},exit:{x:last.x+last.w-56,y:last.y-60,w:36,h:60},timeLimit:d.steps*3+24,right:last.x+last.w+110,top:last.y-180};
  }
  function freshProgress(){return{version:4,currentLevel:1,unlocked:1,completed:[],totalDeaths:0,lives:MAX_LIVES,wallet:0,ownedSkins:['default'],equippedSkin:'default',runs:{}};}
  function normalizeProgress(raw){
@@ -85,19 +98,24 @@
   }
   resetPlayer(){
    const pl=this.world.platforms[this.run.checkpoint];
-   this.player={x:pl.x+pl.w/2-12,y:pl.y-32,w:24,h:32,vx:0,vy:0,grounded:true,platform:pl.id,dead:false,inv:20,dir:1};
+   this.player={x:pl.x+pl.w/2-12,y:pl.y-32,w:24,h:32,vx:0,vy:0,grounded:true,platform:pl.id,dead:false,inv:20,dir:1,dashFrames:0,dashCooldown:0,landing:0};
    this.jumpBuffer=0;this.coyote=5;this.stepClock=0;this.input.left=false;this.input.right=false;
    for(const p of this.world.platforms){p.load=0;p.broken=0;}
   }
   start(n=this.progress.currentLevel){if(!Number.isInteger(n)||n<1||n>this.progress.unlocked)return false;this.load(n);this.progress.currentLevel=n;this.state=this.progress.lives>0?'playing':'gameover';this.save();this.emit(this.state==='playing'?'start':'gameover');return true;}
   save(){this.run.remaining=Math.ceil(this.timer);this.run.collected=this.world.coins.filter(c=>c.got).map(c=>c.id);this.progress.runs[this.level]=this.run;this.emit('save',this.progress);}
   jump(){if(this.state==='playing'&&!this.player.dead)this.jumpBuffer=7;}
+  dash(){
+   const p=this.player;if(this.state!=='playing'||p.dead||p.dashCooldown>0)return false;
+   p.dir=this.input.left&&!this.input.right?-1:this.input.right&&!this.input.left?1:p.dir;
+   p.dashDir=p.dir;p.dashFrames=7;p.dashCooldown=90;this.emit('dash');return true;
+  }
   pause(){if(this.state!=='playing')return false;this.state='paused';this.clearInput();this.save();this.emit('pause');return true;}
   resume(){if(this.state!=='paused')return false;if(this.progress.lives===0){this.state='gameover';this.emit('gameover');return false;}this.state='playing';this.clearInput();return true;}
   clearInput(){this.input.left=false;this.input.right=false;this.jumpBuffer=0;}
   die(reason='tuzoq'){
    if(this.state!=='playing'||this.player.dead)return;
-   this.player.dead=true;this.player.vx=0;this.deathFrames=38;this.run.deaths++;this.progress.totalDeaths++;this.progress.lives=Math.max(0,this.progress.lives-1);this.clearInput();this.save();this.emit('death',reason);
+   this.player.dead=true;this.player.vx=0;this.player.dashFrames=0;this.deathFrames=38;this.run.deaths++;this.progress.totalDeaths++;this.progress.lives=Math.max(0,this.progress.lives-1);this.clearInput();this.save();this.emit('death',reason);
   }
   respawn(){this.resetPlayer();const left=this.world.d.steps-this.run.checkpoint;this.timer=Math.max(this.timer,Math.min(this.world.timeLimit,left*4+24));this.save();this.emit('respawn');}
   buyLife(){
@@ -134,19 +152,24 @@
    if(p.dead){if(--this.deathFrames<=0){if(this.progress.lives>0)this.respawn();else{this.state='gameover';this.clearInput();this.save();this.emit('gameover');}}return;}
    this.timer=Math.max(0,this.timer-1/60);if(this.timer<=0){this.die('vaqt');return;}
    if(p.inv>0)p.inv--;
+   if(p.dashCooldown>0)p.dashCooldown--;if(p.landing>0)p.landing--;
+   const support=p.grounded?(p.platform>=0?w.platforms[p.platform]:w.lifts.find(l=>l.id===p.platform)):null;
+   for(const lift of w.lifts){const oldX=lift.x;lift.x=lift.baseX+(1+Math.sin(this.ticks*lift.speed+lift.phase))*lift.range/2;if(p.grounded&&p.platform===lift.id)p.x+=lift.x-oldX;}
    for(const pl of w.platforms)if(pl.broken>0&&--pl.broken===0)pl.load=0;
    const direction=Number(this.input.right)-Number(this.input.left);
-   if(direction){p.vx=direction*d.speed;p.dir=direction;}else{p.vx*=.62;if(Math.abs(p.vx)<.03)p.vx=0;}
+   if(p.dashFrames>0){p.dashFrames--;p.vx=p.dashDir*9.2;}
+   else if(direction){p.vx=direction*d.speed;p.dir=direction;}else{p.vx*=support?.surface==='ice'?.93:.62;if(Math.abs(p.vx)<.03)p.vx=0;}
+   if(support?.belt)p.x+=support.belt;
    if(p.grounded)this.coyote=5;else if(this.coyote>0)this.coyote--;
    if(this.jumpBuffer>0&&this.coyote>0){p.vy=-d.jump;p.grounded=false;this.coyote=0;this.jumpBuffer=0;this.emit('jump');}else if(this.jumpBuffer>0)this.jumpBuffer--;
    const oldBottom=p.y+p.h,wasGrounded=p.grounded;
    p.vy=Math.min(17,p.vy+d.gravity);p.x=clamp(p.x+p.vx,-35,w.right-p.w);p.y+=p.vy;p.grounded=false;p.platform=-1;
-   for(const pl of w.platforms){
+   for(const pl of [...w.platforms,...w.lifts]){
     if(!pl.broken&&p.vy>=0&&oldBottom<=pl.y+1&&p.y+p.h>=pl.y&&p.x+p.w>pl.x+1&&p.x<pl.x+pl.w-1){p.y=pl.y-p.h;p.vy=0;p.grounded=true;p.platform=pl.id;}
    }
    if(p.grounded){
-    const pl=w.platforms[p.platform];
-    if(!wasGrounded)this.emit('land');
+    const pl=p.platform>=0?w.platforms[p.platform]:w.lifts.find(l=>l.id===p.platform);
+    if(!wasGrounded){p.landing=7;this.emit('land');}
     if(Math.abs(p.vx)>.5&&++this.stepClock>=11){this.stepClock=0;this.emit('step');}
     if(pl.crumble&&++pl.load>=d.crumble){pl.broken=110;pl.load=0;this.emit('crumble');}
     if(pl.checkpoint&&pl.id>this.run.checkpoint&&w.coins.filter(c=>c.id<pl.id).every(c=>c.got)){

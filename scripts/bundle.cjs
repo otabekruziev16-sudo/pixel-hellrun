@@ -3,7 +3,7 @@ const fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib');
 const root=path.join(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p),'utf8');
 fs.mkdirSync(path.join(root,'build/android-assets'),{recursive:true});
 let html=read('index.html').replace('<link rel="stylesheet" href="style.css">',()=>'<style>\n'+read('style.css')+'\n</style>');
-for(const file of ['skins.js','core.js','i18n.js','audio.js','game.js'])html=html.replace('<script src="'+file+'"></script>',()=>'<script>\n'+read(file)+'\n</script>');
+for(const file of ['skins.js','core.js','i18n.js','audio.js','controls.js','store.js','scenery.js','game.js'])html=html.replace('<script src="'+file+'"></script>',()=>'<script>\n'+read(file)+'\n</script>');
 fs.writeFileSync(path.join(root,'build/game.html'),html);
 fs.writeFileSync(path.join(root,'build/android-assets/game.html'),html);
 const side=256,raw=Buffer.alloc(side*(side*4+1));
