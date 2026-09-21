@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 module.exports=async function checkPremium(browser,url,watch,menuFits){
  const p=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true});watch(p);await p.goto(url);
  // Reload the real previous inventory and use the actual replacement selector.
- await p.evaluate(()=>{const save=Core.freshProgress();Object.assign(save,{wallet:100505,ownedSkins:['default','naruto','gojo'],equippedSkin:'gojo',lives:0,currentLevel:7,unlocked:7});save.runs[7]={checkpoint:4,collected:[1,2,3],deaths:6,remaining:35};localStorage.setItem(SAVE_KEY,JSON.stringify(save));});
+ await p.evaluate(()=>{const save=Core.freshProgress();Object.assign(save,{wallet:100505,ownedSkins:['default','naruto','gojo'],equippedSkin:'gojo',lives:0,currentLevel:7,unlocked:7});save.runs[7]={checkpoint:4,collected:[1,2,3],deaths:6,remaining:35};game.progress=save;game.load(7);game.save();});
  await p.reload();assert.deepEqual(await p.evaluate(()=>[game.progress.wallet,game.progress.lives,game.run.checkpoint,game.progress.equippedSkin,game.progress.ownedSkins]),[100505,0,4,'stormmantle',['default','sunforged','stormmantle']]);
  await p.locator('#skinShopBtn').tap();await p.locator('[data-skin="stormmantle"]').tap();
  for(const mode of ['idle','walk','dash']){await p.locator('[data-pose="'+mode+'"]').tap();assert.equal(await p.evaluate(()=>previewPose),mode);assert.equal(await p.locator('[data-pose="'+mode+'"]').getAttribute('aria-pressed'),'true');}

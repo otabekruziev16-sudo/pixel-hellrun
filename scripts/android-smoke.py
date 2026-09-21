@@ -2,6 +2,7 @@ import pathlib, re, struct, subprocess, time, xml.etree.ElementTree as ET
 OUT = pathlib.Path("verification")
 OUT.mkdir(exist_ok=True)
 APP = "uz.otabekruziev.pixelhellrun.hardcore"
+launcher_recoveries = 0
 def adb(*args):
     return subprocess.check_output(["adb", *args], timeout=30)
 def ui():
@@ -47,9 +48,19 @@ def launch():
                  "-n", APP + "/.MainActivity")
     print(output.decode(), flush=True)
 def wait_for(texts, message):
+    global launcher_recoveries
     deadline = time.monotonic() + 60
     while time.monotonic() < deadline:
         tree = ui()
+        # Recover only the stock emulator launcher's one-time boot ANR.
+        # Never dismiss an ANR for HellRun or another unknown application.
+        if find(tree, ["Pixel Launcher isn't responding"]) and launcher_recoveries < 1:
+            close = find(tree, ["Close app"])
+            if close:
+                print("Recovering the emulator Pixel Launcher boot ANR", flush=True)
+                tap(close)
+                launcher_recoveries += 1
+                continue
         # A fresh Android emulator shows this one-time fullscreen tutorial.
         if find(tree, ["Viewing full screen"]):
             acknowledgement = find(tree, ["Got it"])
