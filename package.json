@@ -1,18 +1,15 @@
 {
-  "name": "pixel-hellrun",
-  "version": "2.5.0",
+  "name": "hellrun-test-mod",
+  "version": "2.5.0-mod.1",
   "private": true,
-  "description": "Pixel HellRun \u2014 offline platformer for Android and Windows",
+  "description": "HellRun MOD: unlimited test coins and all 100 levels unlocked",
   "author": "Otabek Ruziev",
   "main": "desktop/main.cjs",
   "scripts": {
     "build:web": "node scripts/bundle.cjs",
-    "test": "node --test tests/physics.test.cjs tests/i18n.test.cjs tests/skins.test.cjs tests/upgrade.test.cjs tests/premium.test.cjs",
-    "test:browser": "node tests/browser.cjs",
-    "build:windows": "node scripts/bundle.cjs && electron-builder --win portable --x64 --publish never",
-    "build:steam": "node scripts/bundle.cjs --steam && electron-builder --win dir --x64 --config.directories.output=release-steam --publish never && node scripts/steam-manifest.cjs",
-    "test:steam": "node tests/steam-browser.cjs",
-    "steam:prepare": "node scripts/steam-prepare.cjs"
+    "test": "node --test tests/physics.test.cjs tests/i18n.test.cjs tests/skins.test.cjs tests/upgrade.test.cjs tests/premium.test.cjs tests/mod.test.cjs",
+    "test:browser": "node tests/mod-browser.cjs",
+    "build:windows": "node scripts/bundle.cjs && electron-builder --win portable --x64 --publish never"
   },
   "devDependencies": {
     "electron": "44.4.2",
@@ -20,8 +17,8 @@
     "playwright": "1.62.1"
   },
   "build": {
-    "appId": "uz.otabekruziev.pixelhellrun.hardcore",
-    "productName": "HellRun Hardcore",
+    "appId": "uz.otabekruziev.pixelhellrun.testmod",
+    "productName": "HellRun MOD",
     "asar": true,
     "files": [
       "desktop/main.cjs",
@@ -45,7 +42,7 @@
       "signAndEditExecutable": true
     },
     "portable": {
-      "artifactName": "HellRun-Windows-x64.exe"
+      "artifactName": "HellRun-MOD-Windows-x64.exe"
     }
   }
 }

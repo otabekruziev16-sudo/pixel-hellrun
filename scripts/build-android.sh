@@ -17,6 +17,6 @@ cp build/android/base.apk build/android/unsigned.apk
 "$tools_dir/zipalign" -f 4 build/android/unsigned.apk build/android/aligned.apk
 # Sideload/test build: the ephemeral signing key is never committed or uploaded.
 keytool -genkeypair -keystore build/android/test-signing.keystore -storepass android -keypass android -alias hellrun-test -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=HellRun Test, O=HellRun, C=UZ"
-"$tools_dir/apksigner" sign --ks build/android/test-signing.keystore --ks-key-alias hellrun-test --ks-pass pass:android --key-pass pass:android --out release/HellRun-Android.apk build/android/aligned.apk
-"$tools_dir/apksigner" verify --verbose release/HellRun-Android.apk
-"$tools_dir/aapt2" dump badging release/HellRun-Android.apk
+"$tools_dir/apksigner" sign --ks build/android/test-signing.keystore --ks-key-alias hellrun-test --ks-pass pass:android --key-pass pass:android --out release/HellRun-MOD-Android.apk build/android/aligned.apk
+"$tools_dir/apksigner" verify --verbose release/HellRun-MOD-Android.apk
+"$tools_dir/aapt2" dump badging release/HellRun-MOD-Android.apk

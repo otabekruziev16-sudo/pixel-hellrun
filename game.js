@@ -1,12 +1,13 @@
 'use strict';
 const $=id=>document.getElementById(id),cv=$('c'),ctx=cv.getContext('2d');
-const SAVE_KEY='hellrun-hardcore-v2',Core=HellRunCore,T=(key,params)=>I18n.t(key,params);
+const Build=HellRunBuild;
+const SAVE_KEY=Build.testMod?'hellrun-test-mod-v1':'hellrun-hardcore-v2',Core=HellRunCore,T=(key,params)=>I18n.t(key,params);
 const escapeHTML=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const E=(key,params)=>escapeHTML(T(key,params)),economy={lives:Core.MAX_LIVES,cost:Core.LIFE_COST};
 let saved=null,hadSave=false,saveFailed=false;
 try{saved=JSON.parse(localStorage.getItem(SAVE_KEY));hadSave=[2,3,4].includes(saved?.version);Sound.muted=localStorage.getItem('hellrun-muted')==='true';}catch{}
 let W=800,H=450,zoom=1,dpr=1,camX=-70,camY=-250,lt=null,accumulator=0,view='home',mapReturn='home',helpReturn='home',languageReturn='home',toastUntil=0,shake=0;
-const Controls=HellRunControls,SETTINGS_KEY='hellrun-settings-v1';
+const Controls=HellRunControls,SETTINGS_KEY=Build.testMod?'hellrun-test-mod-settings-v1':'hellrun-settings-v1';
 let storedSettings=null;try{storedSettings=JSON.parse(localStorage.getItem(SETTINGS_KEY));}catch{}
 let settings=Controls.normalize(storedSettings),settingsReturn='home',coinReturn='home',bindingAction=null;
 Sound.setVolume(settings.volume);
@@ -16,10 +17,11 @@ function saveSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(set
 function keyName(code){return code.replace(/^Key/,'').replace(/^Digit/,'').replace('ShiftLeft','Shift').replace('ShiftRight','R Shift').replace('ControlLeft','Ctrl').replace('ControlRight','R Ctrl').replace('ArrowLeft','←').replace('ArrowRight','→').replace('ArrowUp','↑').replace('ArrowDown','↓');}
 function updateKeyHint(){const b=settings.bindings;$('keyboardHint').textContent=[keyName(b.left)+' / '+keyName(b.right),keyName(b.jump)+' · '+T('jump'),keyName(b.dash)+' · '+T('dash')].join(' · ');}
 
-const game=new Core.Engine(saved,onGameEvent);
-const Skins=HellRunSkins,Build=HellRunBuild;
+const game=new Core.Engine(saved,onGameEvent,{testMod:Build.testMod===true});
+const Skins=HellRunSkins;
 let previewPose='idle',coinAmountRaw='10000';
 let shopReturn='home',skinFilter='all',selectedSkin='sunforged',shopScroll=0;
+const walletText=()=>Build.testMod?'∞':coinsText(game.progress.wallet);
 const coinsText=n=>new Intl.NumberFormat(I18n.lang).format(n);
 function persist(progress){try{localStorage.setItem(SAVE_KEY,JSON.stringify(progress));hadSave=true;saveFailed=false;}catch{saveFailed=true;toast(T('saveError'));}}
 function onGameEvent(name,data){
@@ -43,11 +45,11 @@ function applyLocale(){
  text('langBtn',I18n.lang.toUpperCase());Sound.updateButton();updateKeyHint();lastHud='';hud();
 }
 function hearts(){return Array.from({length:Core.MAX_LIVES},(_,i)=>'<i aria-hidden="true" class="'+(i<game.progress.lives?'alive':'')+'">♥</i>').join('');}
-function resources(){return '<div class="resources"><span class="hearts" aria-label="'+escapeHTML(T('lives')+' '+game.progress.lives+'/'+Core.MAX_LIVES)+'">'+hearts()+'</span><span class="gold">◈ '+coinsText(game.progress.wallet)+' <small>'+E('wallet')+'</small></span></div>';}
+function resources(){return '<div class="resources"><span class="hearts" aria-label="'+escapeHTML(T('lives')+' '+game.progress.lives+'/'+Core.MAX_LIVES)+'">'+hearts()+'</span><span class="gold">◈ '+walletText()+' <small>'+E('wallet')+'</small></span></div>';}
 function hud(){
  const g=game,w=g.world,n=w.coins.filter(c=>c.got).length;
  const signature=[I18n.lang,g.level,n,g.progress.lives,g.progress.wallet,Math.ceil(g.timer),g.run.checkpoint].join('|');
- if(signature!==lastHud){lastHud=signature;$('levelValue').innerHTML=String(g.level).padStart(2,'0')+'<span>/100</span>';text('coinValue',n+'/'+w.coins.length);$('lifeValue').innerHTML=hearts();$('lifeValue').setAttribute('aria-label',T('lives')+' '+g.progress.lives+'/'+Core.MAX_LIVES);text('walletValue',new Intl.NumberFormat(I18n.lang,{notation:g.progress.wallet>=100000?'compact':'standard',maximumFractionDigits:1}).format(g.progress.wallet));$('walletValue').title=coinsText(g.progress.wallet);text('timeValue',Math.ceil(g.timer));$('timeValue').classList.toggle('urgent',g.timer<=15);text('checkpointText',g.run.checkpoint?T('checkpointNo',{n:Math.floor(g.run.checkpoint/4)}):T('entry'));}
+ if(signature!==lastHud){lastHud=signature;$('levelValue').innerHTML=String(g.level).padStart(2,'0')+'<span>/100</span>';text('coinValue',n+'/'+w.coins.length);$('lifeValue').innerHTML=hearts();$('lifeValue').setAttribute('aria-label',T('lives')+' '+g.progress.lives+'/'+Core.MAX_LIVES);text('walletValue',Build.testMod?'∞':new Intl.NumberFormat(I18n.lang,{notation:g.progress.wallet>=100000?'compact':'standard',maximumFractionDigits:1}).format(g.progress.wallet));$('walletValue').title=walletText();text('timeValue',Math.ceil(g.timer));$('timeValue').classList.toggle('urgent',g.timer<=15);text('checkpointText',g.run.checkpoint?T('checkpointNo',{n:Math.floor(g.run.checkpoint/4)}):T('entry'));}
  const percent=Math.round(Core.clamp(g.player.x/(w.exit.x||1),0,1)*100);$('routeFill').style.width=percent+'%';text('chapterName',T(`chapter${w.theme}`));$('bDash').style.setProperty('--charge',(100-g.player.dashCooldown/90*100)+'%');$('bDash').setAttribute('aria-disabled',String(g.player.dashCooldown>0));
 }
 function toast(message){text('toast',message);$('toast').classList.add('visible');toastUntil=performance.now()+2200;}
@@ -57,7 +59,7 @@ function panel(markup,type=''){$('panel').className='panel '+type;$('panel').inn
 function button(parent,label,fn,secondary=false,id=''){const b=document.createElement('button');b.className='obtn'+(secondary?' secondary':'');b.textContent=label;b.onclick=fn;if(id)b.id=id;parent.append(b);return b;}
 function showHome(){
  clearInput();if(game.state!=='menu')game.save();game.state='menu';view='home';$('pauseBtn').disabled=true;
- panel('<div class="hero"><span class="eyebrow">'+E('journey')+'</span><h1 dir="ltr">HELL<span>RUN</span></h1><p class="subline" dir="ltr">HARDCORE</p><p class="description">'+E('intro')+'</p>'+resources()+'</div><div class="save-card"><div><small>'+E(hadSave&&!saveFailed?'savedRoute':'firstStep')+'</small><strong>'+E('levelNo',{n:String(game.progress.currentLevel).padStart(2,'0')})+'</strong></div><em>'+game.progress.completed.length+' / 100<br>'+E('completed')+'</em></div><div class="actions" id="homeActions"></div><p class="hint"><b>'+E('livesHint',economy)+'</b><br>'+E('saveHint')+'</p>','home');
+ panel('<div class="hero"><span class="eyebrow">'+E('journey')+'</span><h1 dir="ltr">HELL<span>RUN</span></h1><p class="subline" dir="ltr">MOD · ∞ ◈ · 100/100</p><p class="description">'+E('intro')+'</p>'+resources()+'</div><div class="save-card"><div><small>'+E(hadSave&&!saveFailed?'savedRoute':'firstStep')+'</small><strong>'+E('levelNo',{n:String(game.progress.currentLevel).padStart(2,'0')})+'</strong></div><em>'+game.progress.completed.length+' / 100<br>'+E('completed')+'</em></div><div class="actions" id="homeActions"></div><p class="hint"><b>'+E('livesHint',economy)+'</b><br>'+E('saveHint')+'</p>','home');
  button($('homeActions'),'▶ '+T(hadSave?'continue':'start'),()=>startGame(),false,'startBtn');
  const row=document.createElement('div');row.className='two-actions';$('homeActions').append(row);button(row,T('levels'),showMap,true,'homeMapBtn');button(row,T('rules'),showHelp,true,'rulesBtn');
  const options=document.createElement('div');options.className='two-actions';$('homeActions').append(options);
@@ -110,7 +112,7 @@ function showSkins(preserve=false){
  const skins=Skins.catalog.filter(s=>skinFilter==='owned'?owned.includes(s.id):skinFilter==='all'||s.rank===skinFilter).sort((a,b)=>a.id==='default'?1:b.id==='default'?-1:Skins.RANKS.findIndex(r=>r.id===a.rank)-Skins.RANKS.findIndex(r=>r.id===b.rank)||a.price-b.price);
  if(!skins.some(s=>s.id===selectedSkin))selectedSkin=skins[0].id;
  const skin=Skins.get(selectedSkin),isOwned=owned.includes(skin.id),equipped=skin.id===game.progress.equippedSkin;
- panel('<header class="shop-header"><div><span class="eyebrow">'+E('collection',{owned:owned.length,total:Skins.catalog.length})+'</span><h2>'+E('shop')+'</h2></div><button id="shopBackBtn" class="obtn secondary">'+E('back')+'</button></header><div class="shop-balance"><span>'+E('wallet')+'</span><strong class="gold">◈ <bdi>'+coinsText(game.progress.wallet)+'</bdi></strong></div><nav id="skinFilters" class="skin-filters" aria-label="'+E('rank',{rank:'E–SS+'})+'"></nav><div class="shop-body"><section class="skin-detail" style="--rank:'+rankColor(skin)+'">'+(skin.rank==='SS+'?'<nav id="skinPoses" class="skin-poses" aria-label="'+E('previewMotion')+'"></nav>':'')+'<div class="skin-art">'+skinCanvas(skin.id,true)+'</div><div class="skin-detail-copy"><div class="skin-badges">'+skinBadge(skin)+'</div><h3 dir="ltr" id="selectedSkinName">'+escapeHTML(skin.name)+'</h3><div class="skin-price">'+(skin.price?'◈ '+coinsText(skin.price):E('freeSkin'))+'</div><div id="skinAction"></div><p class="skin-note">'+(skin.rank==='SS+'?E('legendaryForms')+' ':'')+E('cosmeticOnly')+'</p><p class="shop-feedback" id="shopFeedback" role="status" aria-live="polite"></p></div></section><div id="skinGrid" class="skin-grid" aria-label="'+E('allSkins')+'"></div></div><p class="shop-hint">'+E('skinShopHint')+'</p>','shop');
+ panel('<header class="shop-header"><div><span class="eyebrow">'+E('collection',{owned:owned.length,total:Skins.catalog.length})+'</span><h2>'+E('shop')+'</h2></div><button id="shopBackBtn" class="obtn secondary">'+E('back')+'</button></header><div class="shop-balance"><span>'+E('wallet')+'</span><strong class="gold">◈ <bdi>'+walletText()+'</bdi></strong></div><nav id="skinFilters" class="skin-filters" aria-label="'+E('rank',{rank:'E–SS+'})+'"></nav><div class="shop-body"><section class="skin-detail" style="--rank:'+rankColor(skin)+'">'+(skin.rank==='SS+'?'<nav id="skinPoses" class="skin-poses" aria-label="'+E('previewMotion')+'"></nav>':'')+'<div class="skin-art">'+skinCanvas(skin.id,true)+'</div><div class="skin-detail-copy"><div class="skin-badges">'+skinBadge(skin)+'</div><h3 dir="ltr" id="selectedSkinName">'+escapeHTML(skin.name)+'</h3><div class="skin-price">'+(skin.price?'◈ '+coinsText(skin.price):E('freeSkin'))+'</div><div id="skinAction"></div><p class="skin-note">'+(skin.rank==='SS+'?E('legendaryForms')+' ':'')+E('cosmeticOnly')+'</p><p class="shop-feedback" id="shopFeedback" role="status" aria-live="polite"></p></div></section><div id="skinGrid" class="skin-grid" aria-label="'+E('allSkins')+'"></div></div><p class="shop-hint">'+E('skinShopHint')+'</p>','shop');
  if(skin.rank==='SS+')for(const mode of ['idle','walk','dash']){const b=button($('skinPoses'),T(`pose_${mode}`),()=>{previewPose=mode;document.querySelectorAll('[data-pose]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.pose===mode)));},true);b.dataset.pose=mode;b.setAttribute('aria-pressed',String(previewPose===mode));}
  $('shopBackBtn').onclick=()=>restoreView(shopReturn);
  for(const filter of [{id:'all',name:T('allSkins')},{id:'owned',name:T('ownedSkins')},...Skins.RANKS.map(r=>({id:r.id,name:r.id}))]){
@@ -133,7 +135,7 @@ function showSkins(preserve=false){
 function showSkinConfirm(id){
  const skin=Skins.get(id);if(!skin||game.progress.ownedSkins.includes(id))return;
  shopScroll=$('skinGrid')?.scrollTop||0;view='skinconfirm';
- panel('<div class="skin-badges" style="--rank:'+rankColor(skin)+'">'+skinBadge(skin)+'</div><h2 dir="ltr">'+escapeHTML(skin.name)+'</h2>'+skinCanvas(id,true)+'<p class="description">'+E('confirmSkin',{name:skin.name,price:coinsText(skin.price)})+'</p><div class="shop-balance"><span>'+E('wallet')+'</span><strong class="gold">◈ '+coinsText(game.progress.wallet)+'</strong></div><div class="actions" id="confirmSkinActions"></div>','skin-confirm');
+ panel('<div class="skin-badges" style="--rank:'+rankColor(skin)+'">'+skinBadge(skin)+'</div><h2 dir="ltr">'+escapeHTML(skin.name)+'</h2>'+skinCanvas(id,true)+'<p class="description">'+E('confirmSkin',{name:skin.name,price:coinsText(skin.price)})+'</p><div class="shop-balance"><span>'+E('wallet')+'</span><strong class="gold">◈ '+walletText()+'</strong></div><div class="actions" id="confirmSkinActions"></div>','skin-confirm');
  const buy=button($('confirmSkinActions'),T('buyConfirm'),()=>{buy.disabled=true;const ok=game.buySkin(id);showSkins(true);$('shopFeedback').textContent=ok?T('skinPurchased',{name:skin.name}):T('notEnough',{n:coinsText(Math.max(0,skin.price-game.progress.wallet))});},false,'confirmSkinBtn');
  buy.disabled=game.progress.wallet<skin.price;button($('confirmSkinActions'),T('cancel'),()=>showSkins(true),true,'cancelSkinBtn');renderSkinPreview(document.querySelector('[data-preview]'));
 }
@@ -157,7 +159,7 @@ function nativeBack(){if(view==='settings'){bindingAction=null;restoreView(setti
 
 function showSettings(preserve=false){
  if(game.state==='playing')pauseGame();if(!preserve)settingsReturn=view;view='settings';clearInput();bindingAction=null;
- panel('<span class="eyebrow">HELLRUN · 2.5</span><h2>'+E('settings')+'</h2><div class="setting-row"><label for="volumeSlider">'+E('volume')+'</label><output id="volumeValue">'+Math.round(settings.volume*100)+'%</output></div><input id="volumeSlider" type="range" min="0" max="100" step="1" value="'+Math.round(settings.volume*100)+'"><div class="setting-row"><label for="motionToggle">'+E('motion')+'</label><input id="motionToggle" type="checkbox" '+(settings.motion?'checked':'')+'></div><h3 class="settings-title">'+E('controls')+'</h3><div id="keyBindings" class="bindings"></div><p class="hint" id="bindingHint" role="status"></p><p class="hint">'+E('padGuide')+'</p><p class="hint" id="padStatus">'+(padConnected?E('padConnected'):'')+'</p><div id="settingsActions" class="actions"></div>','settings');
+ panel('<span class="eyebrow">HELLRUN MOD · 2.5</span><h2>'+E('settings')+'</h2><div class="setting-row"><label for="volumeSlider">'+E('volume')+'</label><output id="volumeValue">'+Math.round(settings.volume*100)+'%</output></div><input id="volumeSlider" type="range" min="0" max="100" step="1" value="'+Math.round(settings.volume*100)+'"><div class="setting-row"><label for="motionToggle">'+E('motion')+'</label><input id="motionToggle" type="checkbox" '+(settings.motion?'checked':'')+'></div><h3 class="settings-title">'+E('controls')+'</h3><div id="keyBindings" class="bindings"></div><p class="hint" id="bindingHint" role="status"></p><p class="hint">'+E('padGuide')+'</p><p class="hint" id="padStatus">'+(padConnected?E('padConnected'):'')+'</p><div id="settingsActions" class="actions"></div>','settings');
  $('volumeSlider').oninput=e=>{settings.volume=Number(e.target.value)/100;text('volumeValue',e.target.value+'%');saveSettings();};
  $('motionToggle').onchange=e=>{settings.motion=e.target.checked;shake=0;trail=[];saveSettings();};
  for(const action of Object.keys(Controls.defaults)){

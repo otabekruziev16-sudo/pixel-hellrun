@@ -1,6 +1,7 @@
 'use strict';
 (function(root){
  const Skins=typeof module!=='undefined'&&module.exports?require('./skins.js'):root.HellRunSkins;
+ const TEST_WALLET=1000000000;
  const MAX_LEVEL=100, MAX_LIVES=3, LIFE_COST=5, STEP=1000/60;
  const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
  const int=(n,a,b,f=a)=>Number.isFinite(n)?clamp(Math.floor(n),a,b):f;
@@ -85,7 +86,8 @@
  function rect(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;}
  function circleRect(c,p){const x=clamp(c.x,p.x,p.x+p.w),y=clamp(c.y,p.y,p.y+p.h);return(x-c.x)**2+(y-c.y)**2<c.r*c.r;}
  class Engine{
-  constructor(progress,onEvent=()=>{}){this.progress=normalizeProgress(progress);this.onEvent=onEvent;this.input={left:false,right:false};this.ticks=0;this.state='menu';this.jumpBuffer=0;this.coyote=0;this.load(this.progress.currentLevel);}
+  constructor(progress,onEvent=()=>{},options={}){this.testMod=options.testMod===true;this.progress=normalizeProgress(progress);this.applyTestMod();this.onEvent=onEvent;this.input={left:false,right:false};this.ticks=0;this.state='menu';this.jumpBuffer=0;this.coyote=0;this.load(this.progress.currentLevel);}
+  applyTestMod(){if(this.testMod){this.progress.unlocked=MAX_LEVEL;this.progress.wallet=TEST_WALLET;}}
   emit(name,data){this.onEvent(name,data);}
   load(n){
    this.level=n;this.world=generateLevel(n);const old=this.progress.runs[n];
@@ -103,7 +105,7 @@
    for(const p of this.world.platforms){p.load=0;p.broken=0;}
   }
   start(n=this.progress.currentLevel){if(!Number.isInteger(n)||n<1||n>this.progress.unlocked)return false;this.load(n);this.progress.currentLevel=n;this.state=this.progress.lives>0?'playing':'gameover';this.save();this.emit(this.state==='playing'?'start':'gameover');return true;}
-  save(){this.run.remaining=Math.ceil(this.timer);this.run.collected=this.world.coins.filter(c=>c.got).map(c=>c.id);this.progress.runs[this.level]=this.run;this.emit('save',this.progress);}
+  save(){this.applyTestMod();this.run.remaining=Math.ceil(this.timer);this.run.collected=this.world.coins.filter(c=>c.got).map(c=>c.id);this.progress.runs[this.level]=this.run;this.emit('save',this.progress);}
   jump(){if(this.state==='playing'&&!this.player.dead)this.jumpBuffer=7;}
   dash(){
    const p=this.player;if(this.state!=='playing'||p.dead||p.dashCooldown>0)return false;
@@ -119,8 +121,8 @@
   }
   respawn(){this.resetPlayer();const left=this.world.d.steps-this.run.checkpoint;this.timer=Math.max(this.timer,Math.min(this.world.timeLimit,left*4+24));this.save();this.emit('respawn');}
   buyLife(){
-   if(this.state!=='gameover'||this.progress.lives!==0||this.progress.wallet<LIFE_COST)return false;
-   this.progress.wallet-=LIFE_COST;this.progress.lives=1;this.state='playing';this.respawn();this.emit('revive');return true;
+   if(this.state!=='gameover'||this.progress.lives!==0||(!this.testMod&&this.progress.wallet<LIFE_COST))return false;
+   if(!this.testMod)this.progress.wallet-=LIFE_COST;this.progress.lives=1;this.state='playing';this.respawn();this.emit('revive');return true;
   }
   retryLevel(){
    if(this.state!=='gameover')return false;
@@ -130,9 +132,9 @@
   }
   buySkin(id){
    const skin=Skins.get(id),p=this.progress;
-   if(this.state==='playing'||!skin||p.ownedSkins.includes(id)||p.wallet<skin.price)return false;
+   if(this.state==='playing'||!skin||p.ownedSkins.includes(id)||(!this.testMod&&p.wallet<skin.price))return false;
    // Price comes from the fixed catalog. Save ownership and debit together.
-   p.wallet-=skin.price;p.ownedSkins.push(id);p.equippedSkin=id;this.save();this.emit('skinBought',skin);return true;
+   if(!this.testMod)p.wallet-=skin.price;p.ownedSkins.push(id);p.equippedSkin=id;this.save();this.emit('skinBought',skin);return true;
   }
   equipSkin(id){
    if(this.state==='playing'||!Skins.get(id)||!this.progress.ownedSkins.includes(id))return false;
@@ -176,7 +178,7 @@
      this.run.checkpoint=pl.id;this.timer=Math.max(this.timer,(d.steps-pl.id)*3+20);this.save();this.emit('checkpoint',pl.id);
     }
    }else this.stepClock=0;
-   for(const c of w.coins)if(!c.got&&circleRect(c,p)){c.got=true;this.progress.wallet=Math.min(2000000000,this.progress.wallet+1);this.save();this.emit('coin',c);if(w.coins.every(c=>c.got))this.emit('door');}
+   for(const c of w.coins)if(!c.got&&circleRect(c,p)){c.got=true;if(!this.testMod)this.progress.wallet=Math.min(2000000000,this.progress.wallet+1);this.save();this.emit('coin',c);if(w.coins.every(c=>c.got))this.emit('door');}
    const hitbox={x:p.x+3,y:p.y+3,w:p.w-6,h:p.h-4};
    if(p.inv<=0){
     for(const s of w.spikes)if(rect(hitbox,{x:s.x+3,y:s.y+3,w:s.w-6,h:s.h-3})){this.die('tikan');return;}
@@ -187,6 +189,6 @@
    if(w.coins.every(c=>c.got)&&rect(p,w.exit))this.finish();
   }
  }
- const api={MAX_LEVEL,MAX_LIVES,LIFE_COST,STEP,Engine,generateLevel,difficulty,normalizeProgress,freshProgress,CHAPTERS,clamp,rect,circleRect};
+ const api={TEST_WALLET,MAX_LEVEL,MAX_LIVES,LIFE_COST,STEP,Engine,generateLevel,difficulty,normalizeProgress,freshProgress,CHAPTERS,clamp,rect,circleRect};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.HellRunCore=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

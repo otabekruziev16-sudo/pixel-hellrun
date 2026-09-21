@@ -1,7 +1,7 @@
 import pathlib, re, struct, subprocess, time, xml.etree.ElementTree as ET
 OUT = pathlib.Path("verification")
 OUT.mkdir(exist_ok=True)
-APP = "uz.otabekruziev.pixelhellrun.hardcore"
+APP = "uz.otabekruziev.pixelhellrun.testmod"
 launcher_recoveries = 0
 def adb(*args):
     return subprocess.check_output(["adb", *args], timeout=30)
@@ -76,7 +76,7 @@ def wait_for(texts, message):
 
 try:
     rotate(0)
-    print(adb("install", "-r", "release/HellRun-Android.apk").decode())
+    print(adb("install", "-r", "release/HellRun-MOD-Android.apk").decode())
     adb("logcat", "-c")
     launch()
     start = wait_for(["BOSHLASH"], "Start button did not render in the Android WebView")
@@ -85,21 +85,14 @@ try:
     wait_for(["Ovoz balandligi"], "Volume setting missing")
     screenshot("android-settings.png", False)
     adb("shell", "input", "keyevent", "4")
-    tap(wait_for(["TANGA DO‘KONI"], "Coin store button missing"))
-    amount = wait_for(["10000"], "Custom coin amount input missing")
-    tap(amount)
-    adb("shell", "input", "keyevent", "123", "67", "67", "67", "67", "67")
-    adb("shell", "input", "text", "12345")
-    wait_for(["12 400", "12\u00a0400", "12\u202f400"], "Custom rounded coin quote missing")
-    screenshot("android-coin-keyboard.png", False)
-    adb("shell", "input", "keyevent", "4")
-    wait_for(["Qancha tanga"], "Closing keyboard left the store")
-    screenshot("android-coin-store.png", False)
-    adb("shell", "input", "keyevent", "4")
-    tap(wait_for(["SKINLAR DO‘KONI"], "Skin shop button missing"))
-    wait_for(["Sunforged"], "Legendary skin preview missing")
-    tap(wait_for(["Irg‘ish"], "SS+ dash preview missing"))
-    screenshot("android-skin-shop.png", False)
+    wait_for(["∞"], "Infinite MOD wallet missing")
+    tap(wait_for(["SKINLAR DO‘KONI"], "MOD skin shop button missing"))
+    wait_for(["Sunforged"], "Original SS+ skin missing")
+    tap(wait_for(["SOTIB OLISH"], "MOD skin purchase should be affordable"))
+    tap(wait_for(["XARIDNI TASDIQLASH"], "MOD skin confirmation missing"))
+    wait_for(["KIYILGAN"], "MOD skin did not equip")
+    wait_for(["∞"], "Infinite wallet missing after purchase")
+    screenshot("android-mod-skin-shop.png", False)
     adb("shell", "input", "keyevent", "4")
     tap(wait_for(["BOSHLASH"], "Android Back did not return from shop"))
     time.sleep(1)
@@ -123,6 +116,10 @@ try:
     adb("shell", "am", "force-stop", APP)
     launch()
     wait_for(["DAVOM ETISH"], "Saved game unavailable after terminating the process")
+    tap(wait_for(["SKINLAR DO‘KONI"], "MOD shop missing after process restart"))
+    wait_for(["KIYILGAN"], "MOD skin purchase lost on restart")
+    wait_for(["∞"], "Infinite MOD wallet lost on restart")
+    adb("shell", "input", "keyevent", "4")
     tap(wait_for(["◎ TIL"], "Language menu missing from the main menu"))
     tap(wait_for(["Русский"], "Russian missing from language choices"))
     wait_for(["ПРОДОЛЖИТЬ"], "Main menu did not translate to Russian")
@@ -134,7 +131,7 @@ try:
     wait_for(["ПРОДОЛЖИТЬ"], "Language preference lost on process restart")
     logs = adb("logcat", "-d", "-b", "crash").decode("utf-8", "replace")
     assert ("Process: " + APP) not in logs, logs
-    (OUT / "android-smoke.txt").write_text("PASS: install, portrait and landscape, start, pause, background/resume, saved progress, settings, custom coin entry with keyboard and rounded quote, disconnected coin store, original SS+ skin shop and native Back, language menu, translated native exit dialog, locale after process restart, no Java crash.\n")
+    (OUT / "android-smoke.txt").write_text("PASS: isolated MOD package install, infinite wallet before and after SS+ purchase, equipped skin after process restart, portrait and landscape, start, pause, background/resume, saved progress, settings, native Back, language menu, translated exit dialog, no Java crash.\n")
     print("Android emulator smoke check passed.")
 finally:
     (OUT / "android-display.txt").write_bytes(adb("shell", "dumpsys", "window", "displays"))

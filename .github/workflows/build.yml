@@ -1,7 +1,7 @@
-name: Build HellRun Android and Windows
+name: Build HellRun Test MOD
 on:
   push:
-    branches: [codex/hellrun-android-windows-audio]
+    branches: [codex/hellrun-test-mod]
   workflow_dispatch:
 permissions:
   contents: read
@@ -19,12 +19,10 @@ jobs:
       - run: npm run build:web
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
-      - run: node scripts/bundle.cjs --steam
-      - run: npm run test:steam
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: HellRun-browser-checks
+          name: HellRun-MOD-browser-checks
           path: |
             verification/
             !verification/**/smoke-profile/**
@@ -56,13 +54,13 @@ jobs:
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" build/signing-tool/
       - uses: actions/upload-artifact@v4
         with:
-          name: HellRun-Android-signing-tool
+          name: HellRun-MOD-Android-signing-tool
           path: build/signing-tool/apksigner.jar
           retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
-          name: HellRun-Android
-          path: release/HellRun-Android.apk
+          name: HellRun-MOD-Android
+          path: release/HellRun-MOD-Android.apk
           retention-days: 30
       - name: Enable emulator acceleration
         run: sudo chmod a+rw /dev/kvm
@@ -79,7 +77,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: HellRun-Android-checks
+          name: HellRun-MOD-Android-checks
           path: |
             verification/
             !verification/**/smoke-profile/**
@@ -100,34 +98,19 @@ jobs:
         shell: pwsh
         run: |
           $env:HELLRUN_VERIFY_DIR = Join-Path $PWD "verification"
-          $process = Start-Process -FilePath ".\release\HellRun-Windows-x64.exe" -ArgumentList "--smoke-test" -PassThru -Wait
+          $process = Start-Process -FilePath ".\release\HellRun-MOD-Windows-x64.exe" -ArgumentList "--smoke-test" -PassThru -Wait
           if ($process.ExitCode -ne 0) { throw "Windows app exited with code $($process.ExitCode)" }
           if (-not (Test-Path ".\verification\windows-smoke.json")) { throw "Windows smoke result missing" }
           Get-Content ".\verification\windows-smoke.json"
       - uses: actions/upload-artifact@v4
         with:
-          name: HellRun-Windows
-          path: release/HellRun-Windows-x64.exe
-          retention-days: 30
-      - run: npm run build:steam
-      - name: Run the Steam depot executable
-        shell: pwsh
-        run: |
-          $env:HELLRUN_VERIFY_DIR = Join-Path $PWD "verification/steam"
-          $process = Start-Process -FilePath ".\release-steam\win-unpacked\HellRun Hardcore.exe" -ArgumentList "--smoke-test" -PassThru -Wait
-          if ($process.ExitCode -ne 0) { throw "Steam executable exited with code $($process.ExitCode)" }
-          if (-not (Test-Path ".\verification\steam\windows-smoke.json")) { throw "Steam executable result missing" }
-          $result = Get-Content ".\verification\steam\windows-smoke.json" | ConvertFrom-Json
-          if ($result.channel -ne "steam-offline") { throw "Incorrect Steam build profile" }
-      - uses: actions/upload-artifact@v4
-        with:
-          name: HellRun-Steam-Windows
-          path: release-steam/win-unpacked/
+          name: HellRun-MOD-Windows
+          path: release/HellRun-MOD-Windows-x64.exe
           retention-days: 30
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: HellRun-Windows-checks
+          name: HellRun-MOD-Windows-checks
           path: |
             verification/
             !verification/**/smoke-profile/**

@@ -1,5 +1,6 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib');
+if(process.argv.includes('--steam'))throw Error('This standalone MOD branch is not a Steam release.');
 const root=path.join(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p),'utf8');
 fs.mkdirSync(path.join(root,'build/android-assets'),{recursive:true});
 let html=read('index.html').replace('<link rel="stylesheet" href="style.css">',()=>'<style>\n'+read('style.css')+'\n</style>');

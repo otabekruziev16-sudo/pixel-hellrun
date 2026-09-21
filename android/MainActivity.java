@@ -1,4 +1,4 @@
-package uz.otabekruziev.pixelhellrun.hardcore;
+package uz.otabekruziev.pixelhellrun.testmod;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -44,7 +44,7 @@ public final class MainActivity extends Activity {
     int count;
     while ((count = source.read(buffer)) != -1) output.write(buffer, 0, count);
     String html = new String(output.toByteArray(), StandardCharsets.UTF_8);
-    game.loadDataWithBaseURL("https://hellrun.invalid/", html, "text/html", null, "https://hellrun.invalid/");
+    game.loadDataWithBaseURL("https://hellrun-mod.invalid/", html, "text/html", null, "https://hellrun-mod.invalid/");
    }
    fullscreen();
   } catch (Exception error) {
