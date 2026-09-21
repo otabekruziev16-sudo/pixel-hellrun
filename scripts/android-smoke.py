@@ -94,7 +94,8 @@ try:
     wait_for(["∞"], "Infinite wallet missing after purchase")
     screenshot("android-mod-skin-shop.png", False)
     adb("shell", "input", "keyevent", "4")
-    tap(wait_for(["BOSHLASH"], "Android Back did not return from shop"))
+    # Buying a skin creates a save, so Home now offers Continue.
+    tap(wait_for(["DAVOM ETISH"], "Android Back did not return to the saved game after purchase"))
     time.sleep(1)
     screenshot("android-portrait-game.png", False)
     pause = wait_for(["PAUZA", "Pauza"], "Pause control missing after starting")
