@@ -240,6 +240,32 @@
   Object.assign(packs[code].strings,Object.fromEntries(EXTRA_KEYS.map((key,i)=>[key,values[i]])));
  }
  KEYS.push(...EXTRA_KEYS);
+ const V25_KEYS=['previewMotion','pose_idle','pose_walk','pose_dash','legendaryForms','pricePreview','coinAmount','coinRange','coinReceive','coinRounded','coinRate'];
+ const V25={
+ uz:`Harakatni ko‘rish|Turish|Yurish|Irg‘ish|Faqat SS+: harakatga qarab zirh shakli va effektlar o‘zgaradi.|NARX HISOBI|Qancha tanga kerak?|1 dan {max} gacha butun son kiriting. Ajratkich ishlatmang.|Olinadigan tangalar|Sentga moslash uchun miqdor {n} tangaga yuqoriga yaxlitlandi.|10 000 tanga = 1 USD. Hisob 100 tangalik qadamda, yaxlitlash yuqoriga.`,
+ ru:`Просмотр движения|Покой|Ходьба|Рывок|Только SS+: форма брони и эффекты меняются при движении.|РАСЧЁТ ЦЕНЫ|Сколько монет нужно?|Введите целое число от 1 до {max} без разделителей.|Монеты к получению|Количество округлено вверх до {n} монет для расчёта в центах.|10 000 монет = 1 USD. Шаг — 100 монет, округление вверх.`,
+ en:`Motion preview|Idle|Walk|Dash|SS+ only: armour changes form and effects with movement.|PRICE PREVIEW|How many coins?|Enter a whole number from 1 to {max}, without separators.|Coins to receive|Rounded up to {n} coins to match whole cents.|10,000 coins = 1 USD. Quotes use 100-coin steps, rounded up.`,
+ ar:`معاينة الحركة|وقوف|مشي|اندفاع|لرتبة SS+ فقط: يتغير شكل الدرع ومؤثراته مع الحركة.|حساب السعر|كم قطعة تريد؟|أدخل عدداً صحيحاً من 1 إلى {max} دون فواصل.|القطع المستلمة|قُرّبت الكمية إلى الأعلى لتصبح {n} قطعة بما يطابق السنتات الكاملة.|10 000 قطعة = 1 USD. الحساب بمضاعفات 100 قطعة مع التقريب إلى الأعلى.`,
+ ko:`동작 미리보기|대기|걷기|대시|SS+ 전용: 움직임에 따라 갑옷 형태와 효과가 변합니다.|가격 미리보기|코인 수량|구분 기호 없이 1부터 {max}까지의 정수를 입력하세요.|받을 코인|센트 단위에 맞춰 {n}코인으로 올림했습니다.|10,000코인 = 1 USD. 100코인 단위로 올림하여 계산합니다.`,
+ it:`Anteprima movimento|Fermo|Cammino|Scatto|Solo SS+: forma dell’armatura ed effetti cambiano con il movimento.|CALCOLO PREZZO|Quante monete?|Inserisci un numero intero da 1 a {max}, senza separatori.|Monete ricevute|Arrotondato per eccesso a {n} monete per usare centesimi interi.|10.000 monete = 1 USD. Calcolo a passi di 100 monete, arrotondati per eccesso.`,
+ de:`Bewegungsvorschau|Stehen|Gehen|Sprint|Nur SS+: Rüstung und Effekte verändern sich bei Bewegung.|PREISVORSCHAU|Wie viele Münzen?|Gib eine ganze Zahl von 1 bis {max} ohne Trennzeichen ein.|Erhaltene Münzen|Für ganze Cent auf {n} Münzen aufgerundet.|10.000 Münzen = 1 USD. Berechnung in 100er-Schritten, aufgerundet.`,
+ fr:`Aperçu du mouvement|Repos|Marche|Ruée|SS+ uniquement : l’armure et les effets changent avec le mouvement.|CALCUL DU PRIX|Combien de pièces ?|Saisissez un entier de 1 à {max}, sans séparateurs.|Pièces reçues|Quantité arrondie au-dessus à {n} pièces pour des centimes entiers.|10 000 pièces = 1 USD. Calcul par pas de 100 pièces, arrondi au-dessus.`,
+ es:`Vista del movimiento|Reposo|Caminar|Impulso|Solo SS+: la forma de la armadura y los efectos cambian al moverse.|CÁLCULO DEL PRECIO|¿Cuántas monedas?|Introduce un entero de 1 a {max}, sin separadores.|Monedas que recibirás|Redondeado hacia arriba a {n} monedas para usar céntimos enteros.|10 000 monedas = 1 USD. Pasos de 100 monedas, redondeados hacia arriba.`,
+ pt:`Prévia de movimento|Parado|Andar|Avanço|Apenas SS+: a forma da armadura e os efeitos mudam com o movimento.|CÁLCULO DO PREÇO|Quantas moedas?|Digite um número inteiro de 1 a {max}, sem separadores.|Moedas a receber|Arredondado para cima até {n} moedas para usar centavos inteiros.|10.000 moedas = 1 USD. Cálculo em passos de 100 moedas, arredondados para cima.`,
+ zh:`动作预览|待机|行走|冲刺|仅限SS+：护甲形态和特效随动作变化。|价格预览|需要多少金币？|请输入1到{max}之间的整数，不使用分隔符。|将获得的金币|为按整美分计价，数量已向上取整为{n}金币。|10,000金币 = 1 USD。以100金币为单位向上取整计价。`,
+ ja:`動作プレビュー|待機|歩行|ダッシュ|SS+限定：動きに合わせて鎧の形とエフェクトが変化します。|価格の確認|コインの枚数|区切り記号を使わず、1から{max}までの整数を入力してください。|受け取るコイン|セント単位の価格に合わせて{n}コインに切り上げました。|10,000コイン = 1 USD。100コイン単位で切り上げて計算します。`,
+ tr:`Hareket önizlemesi|Duruş|Yürüme|Atılma|Yalnızca SS+: zırhın biçimi ve efektleri hareketle değişir.|FİYAT HESABI|Kaç para istiyorsun?|Ayırıcı kullanmadan 1 ile {max} arasında bir tam sayı gir.|Alınacak para|Tam sentlere uyması için {n} paraya yukarı yuvarlandı.|10.000 para = 1 USD. 100 para adımlarıyla yukarı yuvarlanır.`,
+ hi:`गति का पूर्वावलोकन|स्थिर|चलना|तेज़ दौड़|केवल SS+: गति के साथ कवच का रूप और प्रभाव बदलते हैं।|कीमत का अनुमान|कितने सिक्के चाहिए?|बिना विभाजक के 1 से {max} तक पूर्णांक दर्ज करें।|मिलने वाले सिक्के|पूरे सेंट में कीमत के लिए मात्रा बढ़ाकर {n} सिक्के की गई।|10,000 सिक्के = 1 USD। 100 सिक्कों के चरण में ऊपर की ओर पूर्णांकित।`,
+ id:`Pratinjau gerakan|Diam|Berjalan|Melesat|Khusus SS+: bentuk zirah dan efek berubah saat bergerak.|HITUNG HARGA|Berapa koin?|Masukkan bilangan bulat dari 1 hingga {max}, tanpa pemisah.|Koin yang diterima|Dibulatkan ke atas menjadi {n} koin agar sesuai sen utuh.|10.000 koin = 1 USD. Dihitung per 100 koin, dibulatkan ke atas.`,
+ nl:`Bewegingsvoorbeeld|Stilstaan|Lopen|Sprint|Alleen SS+: pantservorm en effecten veranderen met de beweging.|PRIJSBEREKENING|Hoeveel munten?|Voer een geheel getal van 1 tot {max} in, zonder scheidingstekens.|Te ontvangen munten|Naar boven afgerond op {n} munten voor hele centen.|10.000 munten = 1 USD. Stappen van 100 munten, naar boven afgerond.`,
+ pl:`Podgląd ruchu|Postój|Chód|Zryw|Tylko SS+: kształt pancerza i efekty zmieniają się w ruchu.|OBLICZENIE CENY|Ile monet?|Wpisz liczbę całkowitą od 1 do {max}, bez separatorów.|Otrzymane monety|Zaokrąglono w górę do {n} monet, aby uzyskać pełne centy.|10 000 monet = 1 USD. Kroki co 100 monet, zaokrąglane w górę.`,
+ sv:`Förhandsvisa rörelse|Stilla|Gång|Rusning|Endast SS+: rustningens form och effekter ändras med rörelsen.|PRISBERÄKNING|Hur många mynt?|Ange ett heltal från 1 till {max}, utan avskiljare.|Mynt att få|Avrundat uppåt till {n} mynt för hela cent.|10 000 mynt = 1 USD. Steg om 100 mynt, avrundade uppåt.`
+ };
+ for(const [code,ui] of Object.entries(V25)){
+  const values=ui.split('|');if(values.length!==V25_KEYS.length)throw Error(code+': incomplete 2.5 translations');
+  Object.assign(packs[code].strings,Object.fromEntries(V25_KEYS.map((key,i)=>[key,values[i]])));
+ }
+ KEYS.push(...V25_KEYS);
  const api={packs,keys:KEYS,lang:'uz',get locales(){return Object.entries(packs).map(([code,p])=>({code,name:p.name,rtl:p.rtl}));},
   t(key,params={}){const value=packs[this.lang]?.strings[key]??packs.en.strings[key]??key;return value.replace(/\{(\w+)\}/g,(_,name)=>String(params[name]??'{'+name+'}'));},
   route(index){return packs[this.lang].routes[index]||packs.en.routes[index];},

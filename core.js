@@ -75,10 +75,10 @@
    // Credit coins from the previous release once. Version 3 stores the spent
    // wallet explicitly; a reload must never refund a purchased life.
    for(const [n,run] of Object.entries(p.runs)){const coins=generateLevel(+n).coins;p.wallet+=run.collected.filter(id=>coins.some(c=>c.id===id)).length;}
-  }else{p.lives=int(raw.lives,0,MAX_LIVES,MAX_LIVES);p.wallet=int(raw.wallet,0,999999);}
+  }else{p.lives=int(raw.lives,0,MAX_LIVES,MAX_LIVES);p.wallet=int(raw.wallet,0,2000000000);}
   if(raw.version===4){
-   p.ownedSkins=[...new Set(['default',...(Array.isArray(raw.ownedSkins)?raw.ownedSkins.filter(id=>typeof id==='string'&&Skins.get(id)):[])])];
-   p.equippedSkin=p.ownedSkins.includes(raw.equippedSkin)?raw.equippedSkin:'default';
+   p.ownedSkins=[...new Set(['default',...(Array.isArray(raw.ownedSkins)?raw.ownedSkins.map(id=>Skins.migrateId(id)).filter(Boolean):[])])];
+   const equipped=Skins.migrateId(raw.equippedSkin);p.equippedSkin=p.ownedSkins.includes(equipped)?equipped:'default';
   }
   return p;
  }
@@ -176,7 +176,7 @@
      this.run.checkpoint=pl.id;this.timer=Math.max(this.timer,(d.steps-pl.id)*3+20);this.save();this.emit('checkpoint',pl.id);
     }
    }else this.stepClock=0;
-   for(const c of w.coins)if(!c.got&&circleRect(c,p)){c.got=true;this.progress.wallet=Math.min(999999,this.progress.wallet+1);this.save();this.emit('coin',c);if(w.coins.every(c=>c.got))this.emit('door');}
+   for(const c of w.coins)if(!c.got&&circleRect(c,p)){c.got=true;this.progress.wallet=Math.min(2000000000,this.progress.wallet+1);this.save();this.emit('coin',c);if(w.coins.every(c=>c.got))this.emit('door');}
    const hitbox={x:p.x+3,y:p.y+3,w:p.w-6,h:p.h-4};
    if(p.inv<=0){
     for(const s of w.spikes)if(rect(hitbox,{x:s.x+3,y:s.y+3,w:s.w-6,h:s.h-3})){this.die('tikan');return;}

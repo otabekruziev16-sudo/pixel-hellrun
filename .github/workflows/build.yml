@@ -19,11 +19,15 @@ jobs:
       - run: npm run build:web
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
+      - run: node scripts/bundle.cjs --steam
+      - run: npm run test:steam
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: HellRun-browser-checks
-          path: verification/
+          path: |
+            verification/
+            !verification/**/smoke-profile/**
           retention-days: 30
   android:
     runs-on: ubuntu-24.04
@@ -76,7 +80,9 @@ jobs:
         if: always()
         with:
           name: HellRun-Android-checks
-          path: verification/
+          path: |
+            verification/
+            !verification/**/smoke-profile/**
           retention-days: 30
   windows:
     runs-on: windows-latest
@@ -103,9 +109,26 @@ jobs:
           name: HellRun-Windows
           path: release/HellRun-Windows-x64.exe
           retention-days: 30
+      - run: npm run build:steam
+      - name: Run the Steam depot executable
+        shell: pwsh
+        run: |
+          $env:HELLRUN_VERIFY_DIR = Join-Path $PWD "verification/steam"
+          $process = Start-Process -FilePath ".\release-steam\win-unpacked\HellRun Hardcore.exe" -ArgumentList "--smoke-test" -PassThru -Wait
+          if ($process.ExitCode -ne 0) { throw "Steam executable exited with code $($process.ExitCode)" }
+          if (-not (Test-Path ".\verification\steam\windows-smoke.json")) { throw "Steam executable result missing" }
+          $result = Get-Content ".\verification\steam\windows-smoke.json" | ConvertFrom-Json
+          if ($result.channel -ne "steam-offline") { throw "Incorrect Steam build profile" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HellRun-Steam-Windows
+          path: release-steam/win-unpacked/
+          retention-days: 30
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: HellRun-Windows-checks
-          path: verification/
+          path: |
+            verification/
+            !verification/**/smoke-profile/**
           retention-days: 30

@@ -33,5 +33,5 @@ test('gamepad uses rising edges, deadzone, menu repeat and reports disconnection
  pad.axes[0]=.8;pad.buttons[0].pressed=true;let state=p.poll(pad,20);assert.equal(state.right,true);assert.equal(state.jump,true);assert.equal(state.navigate,'right');state=p.poll(pad,40);assert.equal(state.jump,false);assert.equal(state.navigate,'');assert.equal(p.poll(pad,400).navigate,'right');assert.equal(p.poll(null,420).disconnected,true);assert.equal(p.poll(null,450).disconnected,false);
 });
 test('offline $1 pack advertises exactly 10,000 coins without any granting or purchasing API',()=>{
- assert.deepEqual(Store.pack,{id:'hellrun_coins_10000',coins:10000,usdCents:100});assert.equal(Store.available,false);assert.equal(Store.status,'not_connected');assert.deepEqual(Object.keys(Store).sort(),['available','pack','status']);assert.ok(Object.isFrozen(Store)&&Object.isFrozen(Store.pack));
+ assert.deepEqual(Store.pack,{id:'hellrun_coins_10000',coins:10000,usdCents:100});assert.equal(Store.available,false);assert.equal(Store.status,'not_connected');assert.deepEqual(Object.keys(Store).sort(),['COINS_PER_CENT','MAX_COINS','available','pack','quote','status']);assert.ok(Object.isFrozen(Store)&&Object.isFrozen(Store.pack));
 });

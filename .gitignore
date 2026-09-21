@@ -4,3 +4,6 @@ release/
 verification/
 *.keystore
 *.jks
+release-steam/
+steam-upload/
+*.p12

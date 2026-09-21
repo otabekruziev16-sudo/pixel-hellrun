@@ -17,8 +17,9 @@ function keyName(code){return code.replace(/^Key/,'').replace(/^Digit/,'').repla
 function updateKeyHint(){const b=settings.bindings;$('keyboardHint').textContent=[keyName(b.left)+' / '+keyName(b.right),keyName(b.jump)+' · '+T('jump'),keyName(b.dash)+' · '+T('dash')].join(' · ');}
 
 const game=new Core.Engine(saved,onGameEvent);
-const Skins=HellRunSkins;
-let shopReturn='home',skinFilter='all',selectedSkin='naruto',shopScroll=0;
+const Skins=HellRunSkins,Build=HellRunBuild;
+let previewPose='idle',coinAmountRaw='10000';
+let shopReturn='home',skinFilter='all',selectedSkin='sunforged',shopScroll=0;
 const coinsText=n=>new Intl.NumberFormat(I18n.lang).format(n);
 function persist(progress){try{localStorage.setItem(SAVE_KEY,JSON.stringify(progress));hadSave=true;saveFailed=false;}catch{saveFailed=true;toast(T('saveError'));}}
 function onGameEvent(name,data){
@@ -42,11 +43,11 @@ function applyLocale(){
  text('langBtn',I18n.lang.toUpperCase());Sound.updateButton();updateKeyHint();lastHud='';hud();
 }
 function hearts(){return Array.from({length:Core.MAX_LIVES},(_,i)=>'<i aria-hidden="true" class="'+(i<game.progress.lives?'alive':'')+'">♥</i>').join('');}
-function resources(){return '<div class="resources"><span class="hearts" aria-label="'+escapeHTML(T('lives')+' '+game.progress.lives+'/'+Core.MAX_LIVES)+'">'+hearts()+'</span><span class="gold">◈ '+game.progress.wallet+' <small>'+E('wallet')+'</small></span></div>';}
+function resources(){return '<div class="resources"><span class="hearts" aria-label="'+escapeHTML(T('lives')+' '+game.progress.lives+'/'+Core.MAX_LIVES)+'">'+hearts()+'</span><span class="gold">◈ '+coinsText(game.progress.wallet)+' <small>'+E('wallet')+'</small></span></div>';}
 function hud(){
  const g=game,w=g.world,n=w.coins.filter(c=>c.got).length;
  const signature=[I18n.lang,g.level,n,g.progress.lives,g.progress.wallet,Math.ceil(g.timer),g.run.checkpoint].join('|');
- if(signature!==lastHud){lastHud=signature;$('levelValue').innerHTML=String(g.level).padStart(2,'0')+'<span>/100</span>';text('coinValue',n+'/'+w.coins.length);$('lifeValue').innerHTML=hearts();$('lifeValue').setAttribute('aria-label',T('lives')+' '+g.progress.lives+'/'+Core.MAX_LIVES);text('walletValue',g.progress.wallet);text('timeValue',Math.ceil(g.timer));$('timeValue').classList.toggle('urgent',g.timer<=15);text('checkpointText',g.run.checkpoint?T('checkpointNo',{n:Math.floor(g.run.checkpoint/4)}):T('entry'));}
+ if(signature!==lastHud){lastHud=signature;$('levelValue').innerHTML=String(g.level).padStart(2,'0')+'<span>/100</span>';text('coinValue',n+'/'+w.coins.length);$('lifeValue').innerHTML=hearts();$('lifeValue').setAttribute('aria-label',T('lives')+' '+g.progress.lives+'/'+Core.MAX_LIVES);text('walletValue',new Intl.NumberFormat(I18n.lang,{notation:g.progress.wallet>=100000?'compact':'standard',maximumFractionDigits:1}).format(g.progress.wallet));$('walletValue').title=coinsText(g.progress.wallet);text('timeValue',Math.ceil(g.timer));$('timeValue').classList.toggle('urgent',g.timer<=15);text('checkpointText',g.run.checkpoint?T('checkpointNo',{n:Math.floor(g.run.checkpoint/4)}):T('entry'));}
  const percent=Math.round(Core.clamp(g.player.x/(w.exit.x||1),0,1)*100);$('routeFill').style.width=percent+'%';text('chapterName',T(`chapter${w.theme}`));$('bDash').style.setProperty('--charge',(100-g.player.dashCooldown/90*100)+'%');$('bDash').setAttribute('aria-disabled',String(g.player.dashCooldown>0));
 }
 function toast(message){text('toast',message);$('toast').classList.add('visible');toastUntil=performance.now()+2200;}
@@ -62,7 +63,7 @@ function showHome(){
  const options=document.createElement('div');options.className='two-actions';$('homeActions').append(options);
  button(options,'◎ '+T('language'),showLanguages,true,'languageMenuBtn');button(options,T('settings'),()=>showSettings(),true,'settingsBtn');
  const shops=document.createElement('div');shops.className='two-actions';$('homeActions').append(shops);
- button(shops,'◈ '+T('shop'),showSkins,true,'skinShopBtn');button(shops,T('coinStore'),()=>showCoinStore(),true,'coinStoreBtn');
+ button(shops,'◈ '+T('shop'),showSkins,true,'skinShopBtn');if(Build.coinPreview)button(shops,T('coinStore'),()=>showCoinStore(),true,'coinStoreBtn');
 }
 function showPlaying(){view='game';$('ov').hidden=true;$('mapScreen').hidden=true;$('ctrl').inert=false;$('pauseBtn').disabled=false;clearInput();particles=[];trail=[];lt=null;accumulator=0;snapCamera();hud();}
 async function startGame(n=game.progress.currentLevel){
@@ -73,7 +74,7 @@ function pauseGame(){if(!game.pause())return false;clearInput();showPause();if(S
 function showPause(){
  view='pause';panel('<span class="eyebrow">'+E('levelNo',{n:String(game.level).padStart(2,'0')})+' · '+E('progressSaved')+'</span><h2>'+E('pause')+'</h2>'+resources()+'<p class="description">'+E('stats',{coins:game.world.coins.filter(c=>c.got).length,deaths:game.run.deaths})+'<br>'+E('nextTip')+'</p><div class="actions" id="pauseActions"></div>');
  button($('pauseActions'),'▶ '+T('continue'),resumeGame,false,'resumeBtn');button($('pauseActions'),T('levels'),showMap,true);button($('pauseActions'),T('language'),showLanguages,true);button($('pauseActions'),T('home'),showHome,true);
- button($('pauseActions'),'◈ '+T('shop'),showSkins,true,'pauseShopBtn');button($('pauseActions'),T('settings'),()=>showSettings(),true,'pauseSettingsBtn');button($('pauseActions'),T('coinStore'),()=>showCoinStore(),true,'pauseCoinStoreBtn');
+ button($('pauseActions'),'◈ '+T('shop'),showSkins,true,'pauseShopBtn');button($('pauseActions'),T('settings'),()=>showSettings(),true,'pauseSettingsBtn');if(Build.coinPreview)button($('pauseActions'),T('coinStore'),()=>showCoinStore(),true,'pauseCoinStoreBtn');
 }
 async function resumeGame(){await Sound.unlock();if(game.resume())showPlaying();}
 function showHelp(preserve=false){
@@ -98,17 +99,19 @@ function skinCanvas(id,large=false){return '<canvas class="skin-preview'+(large?
 function renderSkinPreview(canvas,tick=0){
  const c=canvas.getContext('2d');c.clearRect(0,0,240,170);c.imageSmoothingEnabled=false;
  const skin=Skins.get(canvas.dataset.preview);const gradient=c.createRadialGradient(120,95,3,120,95,100);gradient.addColorStop(0,rankColor(skin)+'2c');gradient.addColorStop(1,rankColor(skin)+'00');c.fillStyle=gradient;c.fillRect(0,0,240,170);
- Skins.draw(c,skin.id,78,20,{scale:3.5,tick,walking:false});
+ const mode=canvas.classList.contains('large')?previewPose:'idle';
+ Skins.draw(c,skin.id,98,43,{scale:2.3,tick,walking:mode==='walk',dash:mode==='dash',grounded:mode!=='dash',motion:settings.motion});
 }
 function showSkins(preserve=false){
  if(game.state==='playing')pauseGame();
- if(preserve!==true){shopReturn=view==='skins'?'home':view;skinFilter='all';shopScroll=0;selectedSkin='naruto';}
+ if(preserve!==true){shopReturn=view==='skins'?'home':view;skinFilter='all';shopScroll=0;selectedSkin='sunforged';previewPose='idle';}
  clearInput();view='skins';
  const owned=game.progress.ownedSkins;
  const skins=Skins.catalog.filter(s=>skinFilter==='owned'?owned.includes(s.id):skinFilter==='all'||s.rank===skinFilter).sort((a,b)=>a.id==='default'?1:b.id==='default'?-1:Skins.RANKS.findIndex(r=>r.id===a.rank)-Skins.RANKS.findIndex(r=>r.id===b.rank)||a.price-b.price);
  if(!skins.some(s=>s.id===selectedSkin))selectedSkin=skins[0].id;
  const skin=Skins.get(selectedSkin),isOwned=owned.includes(skin.id),equipped=skin.id===game.progress.equippedSkin;
- panel('<header class="shop-header"><div><span class="eyebrow">'+E('collection',{owned:owned.length,total:Skins.catalog.length})+'</span><h2>'+E('shop')+'</h2></div><button id="shopBackBtn" class="obtn secondary">'+E('back')+'</button></header><div class="shop-balance"><span>'+E('wallet')+'</span><strong class="gold">◈ <bdi>'+coinsText(game.progress.wallet)+'</bdi></strong></div><nav id="skinFilters" class="skin-filters" aria-label="'+E('rank',{rank:'E–SS+'})+'"></nav><div class="shop-body"><section class="skin-detail" style="--rank:'+rankColor(skin)+'"><div class="skin-art">'+skinCanvas(skin.id,true)+'</div><div class="skin-detail-copy"><div class="skin-badges">'+skinBadge(skin)+'</div><h3 dir="ltr" id="selectedSkinName">'+escapeHTML(skin.name)+'</h3><div class="skin-price">'+(skin.price?'◈ '+coinsText(skin.price):E('freeSkin'))+'</div><div id="skinAction"></div><p class="skin-note">'+E('cosmeticOnly')+'</p><p class="shop-feedback" id="shopFeedback" role="status" aria-live="polite"></p></div></section><div id="skinGrid" class="skin-grid" aria-label="'+E('allSkins')+'"></div></div><p class="shop-hint">'+E('skinShopHint')+'</p>','shop');
+ panel('<header class="shop-header"><div><span class="eyebrow">'+E('collection',{owned:owned.length,total:Skins.catalog.length})+'</span><h2>'+E('shop')+'</h2></div><button id="shopBackBtn" class="obtn secondary">'+E('back')+'</button></header><div class="shop-balance"><span>'+E('wallet')+'</span><strong class="gold">◈ <bdi>'+coinsText(game.progress.wallet)+'</bdi></strong></div><nav id="skinFilters" class="skin-filters" aria-label="'+E('rank',{rank:'E–SS+'})+'"></nav><div class="shop-body"><section class="skin-detail" style="--rank:'+rankColor(skin)+'">'+(skin.rank==='SS+'?'<nav id="skinPoses" class="skin-poses" aria-label="'+E('previewMotion')+'"></nav>':'')+'<div class="skin-art">'+skinCanvas(skin.id,true)+'</div><div class="skin-detail-copy"><div class="skin-badges">'+skinBadge(skin)+'</div><h3 dir="ltr" id="selectedSkinName">'+escapeHTML(skin.name)+'</h3><div class="skin-price">'+(skin.price?'◈ '+coinsText(skin.price):E('freeSkin'))+'</div><div id="skinAction"></div><p class="skin-note">'+(skin.rank==='SS+'?E('legendaryForms')+' ':'')+E('cosmeticOnly')+'</p><p class="shop-feedback" id="shopFeedback" role="status" aria-live="polite"></p></div></section><div id="skinGrid" class="skin-grid" aria-label="'+E('allSkins')+'"></div></div><p class="shop-hint">'+E('skinShopHint')+'</p>','shop');
+ if(skin.rank==='SS+')for(const mode of ['idle','walk','dash']){const b=button($('skinPoses'),T(`pose_${mode}`),()=>{previewPose=mode;document.querySelectorAll('[data-pose]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.pose===mode)));},true);b.dataset.pose=mode;b.setAttribute('aria-pressed',String(previewPose===mode));}
  $('shopBackBtn').onclick=()=>restoreView(shopReturn);
  for(const filter of [{id:'all',name:T('allSkins')},{id:'owned',name:T('ownedSkins')},...Skins.RANKS.map(r=>({id:r.id,name:r.id}))]){
   const b=button($('skinFilters'),filter.name,()=>{skinFilter=filter.id;shopScroll=0;showSkins(true);},true);b.dataset.rank=filter.id;b.setAttribute('aria-pressed',String(skinFilter===filter.id));
@@ -154,7 +157,7 @@ function nativeBack(){if(view==='settings'){bindingAction=null;restoreView(setti
 
 function showSettings(preserve=false){
  if(game.state==='playing')pauseGame();if(!preserve)settingsReturn=view;view='settings';clearInput();bindingAction=null;
- panel('<span class="eyebrow">HELLRUN · 2.4</span><h2>'+E('settings')+'</h2><div class="setting-row"><label for="volumeSlider">'+E('volume')+'</label><output id="volumeValue">'+Math.round(settings.volume*100)+'%</output></div><input id="volumeSlider" type="range" min="0" max="100" step="1" value="'+Math.round(settings.volume*100)+'"><div class="setting-row"><label for="motionToggle">'+E('motion')+'</label><input id="motionToggle" type="checkbox" '+(settings.motion?'checked':'')+'></div><h3 class="settings-title">'+E('controls')+'</h3><div id="keyBindings" class="bindings"></div><p class="hint" id="bindingHint" role="status"></p><p class="hint">'+E('padGuide')+'</p><p class="hint" id="padStatus">'+(padConnected?E('padConnected'):'')+'</p><div id="settingsActions" class="actions"></div>','settings');
+ panel('<span class="eyebrow">HELLRUN · 2.5</span><h2>'+E('settings')+'</h2><div class="setting-row"><label for="volumeSlider">'+E('volume')+'</label><output id="volumeValue">'+Math.round(settings.volume*100)+'%</output></div><input id="volumeSlider" type="range" min="0" max="100" step="1" value="'+Math.round(settings.volume*100)+'"><div class="setting-row"><label for="motionToggle">'+E('motion')+'</label><input id="motionToggle" type="checkbox" '+(settings.motion?'checked':'')+'></div><h3 class="settings-title">'+E('controls')+'</h3><div id="keyBindings" class="bindings"></div><p class="hint" id="bindingHint" role="status"></p><p class="hint">'+E('padGuide')+'</p><p class="hint" id="padStatus">'+(padConnected?E('padConnected'):'')+'</p><div id="settingsActions" class="actions"></div>','settings');
  $('volumeSlider').oninput=e=>{settings.volume=Number(e.target.value)/100;text('volumeValue',e.target.value+'%');saveSettings();};
  $('motionToggle').onchange=e=>{settings.motion=e.target.checked;shake=0;trail=[];saveSettings();};
  for(const action of Object.keys(Controls.defaults)){
@@ -164,12 +167,21 @@ function showSettings(preserve=false){
  button($('settingsActions'),T('resetControls'),()=>{settings.bindings={...Controls.defaults};saveSettings();showSettings(true);},true,'resetKeysBtn');
  button($('settingsActions'),T('back'),()=>{bindingAction=null;restoreView(settingsReturn);},false,'settingsBackBtn');
 }
+function updateCoinQuote(){
+ const q=HellRunStore.quote(coinAmountRaw),field=$('coinAmount');field.setAttribute('aria-invalid',String(!q.ok));
+ text('coinError',q.ok?'':T('coinRange',{max:coinsText(HellRunStore.MAX_COINS)}));
+ text('coinReceive',q.ok?T('coinPack',{n:coinsText(q.coins)}):'—');
+ text('coinPrice',q.ok?new Intl.NumberFormat(I18n.lang,{style:'currency',currency:'USD'}).format(q.usdCents/100):'—');
+ text('coinRounding',q.ok&&q.rounded?T('coinRounded',{n:coinsText(q.coins)}):T('coinRate'));
+}
 function showCoinStore(preserve=false){
+ if(!Build.coinPreview)return false;
  if(game.state==='playing')pauseGame();if(!preserve)coinReturn=view;view='coinstore';clearInput();
- const pack=HellRunStore.pack,price=new Intl.NumberFormat(I18n.lang,{style:'currency',currency:'USD'}).format(pack.usdCents/100);
- panel('<span class="eyebrow">'+E('coinStore')+'</span><h2>'+E('coinStore')+'</h2>'+resources()+'<div class="coin-pack"><div class="coin-art" aria-hidden="true">◈</div><h3>'+E('coinPack',{n:coinsText(pack.coins)})+'</h3><strong dir="auto">'+escapeHTML(price)+'</strong><small>'+E('priceTarget')+'</small></div><p class="description" id="billingStatus">'+E('billingUnavailable')+'</p><div class="actions" id="coinActions"></div>','coin-store');
+ panel('<span class="eyebrow">'+E('pricePreview')+'</span><h2>'+E('coinStore')+'</h2>'+resources()+'<label class="coin-label" for="coinAmount">'+E('coinAmount')+'</label><input id="coinAmount" type="text" inputmode="numeric" pattern="[0-9٠-٩۰-۹०-९０-９]*" maxlength="16" autocomplete="off" spellcheck="false" dir="ltr" aria-describedby="coinError coinRounding billingStatus"><p id="coinError" class="coin-error" role="status"></p><div class="coin-shortcuts" id="coinShortcuts"></div><div class="coin-pack" aria-live="polite" aria-atomic="true"><small>'+E('coinReceive')+'</small><h3 id="coinReceive"></h3><strong id="coinPrice" dir="auto"></strong><small>'+E('priceTarget')+'</small></div><p class="hint" id="coinRounding"></p><p class="description" id="billingStatus">'+E('billingUnavailable')+'</p><div class="actions" id="coinActions"></div>','coin-store');
+ $('coinAmount').value=coinAmountRaw;$('coinAmount').oninput=e=>{coinAmountRaw=e.target.value;updateCoinQuote();};
+ for(const n of [10000,50000,100000]){const b=button($('coinShortcuts'),coinsText(n),()=>{coinAmountRaw=String(n);$('coinAmount').value=coinAmountRaw;updateCoinQuote();},true);b.dataset.amount=n;}
  const buy=button($('coinActions'),T('purchaseUnavailable'),()=>{},false,'buyCoinsBtn');buy.disabled=true;buy.setAttribute('aria-describedby','billingStatus');
- button($('coinActions'),T('back'),()=>restoreView(coinReturn),true,'coinBackBtn');
+ button($('coinActions'),T('back'),()=>restoreView(coinReturn),true,'coinBackBtn');updateCoinQuote();
 }
 function pollGamepad(now){
  let pads=[];try{pads=navigator.getGamepads?.()||[];}catch{}
@@ -194,7 +206,7 @@ function pollGamepad(now){
  if(input.jump){const item=index<0?items[0]:items[index];item.focus();item.click();}
 }
 
-function resize(){const r=$('wrap').getBoundingClientRect();zoom=Core.clamp(Math.min(r.width/840,r.height/470),1,1.65);dpr=Math.min(2,window.devicePixelRatio||1);W=r.width/zoom;H=r.height/zoom;cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.height*dpr);snapCamera();}
+function resize(){document.documentElement.style.setProperty('--menu-height',(window.visualViewport?.height||innerHeight)+'px');const r=$('wrap').getBoundingClientRect();zoom=Core.clamp(Math.min(r.width/840,r.height/470),1,1.65);dpr=Math.min(2,window.devicePixelRatio||1);W=r.width/zoom;H=r.height/zoom;cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.height*dpr);snapCamera();}
 function cameraTarget(){return{x:Core.clamp(game.player.x-W*.33,-70,Math.max(-70,game.world.right-W+35)),y:game.player.y-H*.53};}
 function snapCamera(){const c=cameraTarget();camX=c.x;camY=c.y;}
 function burst(x,y,color,n){if(!settings.motion)return;for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-.5)*5,vy:-Math.random()*4-1,life:1,size:2+Math.random()*3,color});if(particles.length>180)particles.splice(0,particles.length-180);}
@@ -222,7 +234,7 @@ function door(d,exit){
 }
 function drawPlayer(){
  const p=game.player;if(p.dead)return;ctx.globalAlpha=p.inv>0&&Math.floor(game.ticks/4)%2?.6:1;
- Skins.draw(ctx,game.progress.equippedSkin,p.x,p.y,{dir:p.dir,tick:game.ticks,walking:Math.abs(p.vx)>.4,grounded:p.grounded,landing:settings.motion?p.landing:0});ctx.globalAlpha=1;
+ Skins.draw(ctx,game.progress.equippedSkin,p.x,p.y,{dir:p.dir,tick:game.ticks,walking:Math.abs(p.vx)>.4,grounded:p.grounded,dash:p.dashFrames>0,motion:settings.motion,landing:settings.motion?p.landing:0});ctx.globalAlpha=1;
 }
 function draw(){
  ctx.setTransform(dpr*zoom,0,0,dpr*zoom,0,0);ctx.imageSmoothingEnabled=false;
@@ -237,7 +249,7 @@ function draw(){
  for(const l of game.world.lasers){const state=game.laserState(l);ctx.fillStyle='#48283d';ctx.fillRect(l.x-10,l.y-7,20,8);ctx.fillRect(l.x-10,l.y+l.h,20,8);ctx.fillStyle=state.active?'#ff4778':state.warning?'#ffca76':'#59243d';ctx.fillRect(l.x-4,l.y-4,8,4);if(state.active){ctx.fillStyle='#ff3b6c33';ctx.fillRect(l.x-9,l.y,18,l.h);ctx.fillStyle='#ff4674';ctx.fillRect(l.x-3,l.y,6,l.h);ctx.fillStyle='#ffe8ef';ctx.fillRect(l.x-1,l.y,2,l.h);}else{ctx.globalAlpha=state.warning?.75:.15;ctx.strokeStyle=state.warning?'#ffca76':'#e9537e';ctx.setLineDash([3,5]);ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(l.x,l.y+l.h);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;}}
  for(const s of game.world.saws){const p=game.sawPosition(s);ctx.strokeStyle='#5e3d53';ctx.beginPath();ctx.moveTo(s.x-s.range,s.y);ctx.lineTo(s.x+s.range,s.y);ctx.stroke();ctx.save();ctx.translate(p.x,p.y);ctx.rotate(game.ticks*.13);ctx.fillStyle='#f77a97';ctx.beginPath();for(let i=0;i<24;i++){const a=i/24*Math.PI*2,r=i%2?p.r*.7:p.r;const x=Math.cos(a)*r,y=Math.sin(a)*r;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();ctx.fill();ctx.fillStyle='#5e1937';ctx.beginPath();ctx.arc(0,0,p.r*.47,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffe8df';ctx.fillRect(-2,-2,4,4);ctx.restore();}
  for(const c of game.world.coins){if(c.got)continue;const y=c.y+Math.sin(game.ticks*.06+c.id)*2;ctx.fillStyle='#ffce6318';ctx.beginPath();ctx.arc(c.x,y,14,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffce63';ctx.beginPath();ctx.arc(c.x,y,c.r,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff6b1';ctx.fillRect(c.x-3,y-4,2,6);ctx.fillStyle='#a76525';ctx.fillRect(c.x+2,y-3,1,6);}
- for(const ghost of trail){ctx.globalAlpha=ghost.life/35;Skins.draw(ctx,game.progress.equippedSkin,ghost.x,ghost.y,{dir:ghost.dir,tick:game.ticks,grounded:false});}ctx.globalAlpha=1;
+ for(const ghost of trail){ctx.globalAlpha=ghost.life/35;Skins.draw(ctx,game.progress.equippedSkin,ghost.x,ghost.y,{dir:ghost.dir,tick:game.ticks,grounded:false,dash:true,motion:false});}ctx.globalAlpha=1;
  for(const p of particles){ctx.globalAlpha=p.life;ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,p.size,p.size);}ctx.globalAlpha=1;drawPlayer();ctx.restore();hud();
  if(game.player.dead){ctx.fillStyle='#ff18441a';ctx.fillRect(0,0,W,H);}
 }
