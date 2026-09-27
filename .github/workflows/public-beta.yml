@@ -75,9 +75,9 @@ jobs:
       - name: Run persistent APK on an Android device
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
+          api-level: 35
           arch: x86_64
-          target: default
+          target: google_apis
           profile: pixel_2
           emulator-boot-timeout: 300
           disable-linux-hw-accel: false
