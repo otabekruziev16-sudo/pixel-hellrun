@@ -1,0 +1,52 @@
+name: HellRun beta xatosi
+description: Sinov paytida topilgan xatoni yuboring
+title: "[Beta] "
+body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Qurilma
+      options:
+        - Android
+        - Windows 10
+        - Windows 11
+        - Boshqa
+    validations:
+      required: true
+  - type: input
+    id: level
+    attributes:
+      label: Daraja
+      description: Xato qaysi darajada yuz berdi?
+      placeholder: Masalan, 27-daraja
+  - type: textarea
+    id: steps
+    attributes:
+      label: Xatoni takrorlash qadamlari
+      description: Qaysi tugmalarni bosdingiz va nima sodir bo'ldi?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Kutilgan natija
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Haqiqiy natija
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Rasm yoki video
+      description: Imkon bo'lsa skrinshot yoki video biriktiring.
+  - type: checkboxes
+    id: duplicate
+    attributes:
+      label: Tekshiruv
+      options:
+        - label: Issues bo'limida shu xato oldin yozilmaganini tekshirdim.
+          required: true
