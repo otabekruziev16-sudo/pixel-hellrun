@@ -28,10 +28,17 @@ def find(root, texts):
 def tap(point):
     adb("shell", "input", "tap", str(point[0]), str(point[1]))
 def rotate(rotation):
-    # Update the active display through WindowManager, which also refreshes
-    # the orientation immediately; a Settings database write alone may not.
-    print(adb("shell", "wm", "user-rotation", "lock", str(rotation)).decode(), flush=True)
-    print("Display rotation: " + adb("shell", "wm", "user-rotation").decode(), flush=True)
+    # Android 11+ exposes WindowManager's user-rotation command. Android 10
+    # uses the equivalent system settings, so keep both public test paths.
+    try:
+        print(adb("shell", "wm", "user-rotation", "lock", str(rotation)).decode(), flush=True)
+        state = adb("shell", "wm", "user-rotation").decode()
+    except subprocess.CalledProcessError:
+        adb("shell", "settings", "put", "system", "accelerometer_rotation", "0")
+        adb("shell", "settings", "put", "system", "user_rotation", str(rotation))
+        state = "legacy=" + adb("shell", "settings", "get", "system", "user_rotation").decode()
+    print("Display rotation: " + state, flush=True)
+    time.sleep(2)
 def screenshot(name, landscape=None):
     for _ in range(10):
         data = adb("exec-out", "screencap", "-p")
