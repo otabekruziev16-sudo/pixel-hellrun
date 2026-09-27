@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: hellrun-public-beta
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   RELEASE_TAG: v2.5.0-beta.1
@@ -51,17 +51,7 @@ jobs:
       - run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
       - name: Build APK
         run: bash scripts/build-android.sh
-      - name: Run Android device smoke test
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          arch: x86_64
-          target: google_apis
-          profile: pixel_2
-          disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: python3 scripts/android-smoke.py
-      - name: Verify persistent release APK matches the tested build
+      - name: Verify persistent release APK matches the generated build
         shell: bash
         run: |
           base64 --decode .github/release-assets/HellRun-Android.apk.b64 > release/HellRun-Android-persistent.apk
@@ -77,6 +67,16 @@ jobs:
           assert payload("release/HellRun-Android.apk") == payload("release/HellRun-Android-persistent.apk")
           PY
           mv release/HellRun-Android-persistent.apk release/HellRun-Android.apk
+      - name: Run persistent APK on an Android device
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: python3 scripts/android-smoke.py
       - uses: actions/upload-artifact@v4
         with:
           name: public-beta-android

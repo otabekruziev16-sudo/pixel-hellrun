@@ -30,5 +30,5 @@
 @media(max-height:650px) and (orientation:portrait){.skin-detail{grid-template-columns:80px minmax(0,1fr)}.skin-detail h3{font-size:17px}.skin-detail:has(.skin-poses) .skin-preview{height:112px}.skin-poses .obtn{padding:5px 2px;min-height:29px}.coin-label{margin-top:12px}.coin-store .description{font-size:12px}#walletValue{font-size:14px}}
 @media(max-height:500px) and (orientation:landscape){.skin-detail{grid-template-columns:80px minmax(0,1fr)}.skin-detail h3{font-size:17px}.skin-poses .obtn{font-size:8px;min-height:29px}.skin-detail:has(.skin-poses) .skin-preview{height:116px}}
 
-#ov{height:min(100%,var(--menu-height,100dvh));bottom:auto}.panel{max-height:calc(var(--menu-height,100dvh) - 36px)}
-@media(max-height:500px){.panel{max-height:calc(var(--menu-height,100dvh) - 24px)}}
+#ov{height:100dvh;bottom:auto}.panel{max-height:calc(100dvh - 36px)}
+@media(max-height:500px){.panel{max-height:calc(100dvh - 24px)}}
