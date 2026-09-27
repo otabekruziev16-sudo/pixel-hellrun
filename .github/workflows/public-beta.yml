@@ -120,6 +120,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
       RELEASE_NOTES: |
         Bu HellRun Hardcore 2.5.0 ommaviy sinov versiyasi. Steam uchun yakuniy reliz emas.
 
